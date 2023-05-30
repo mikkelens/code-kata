@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::str::FromStr;
 fn main() {
-    // part_1();
+    part_1();
     part_2();
 }
 
@@ -11,16 +11,14 @@ fn part_2() {
     let input = include_str!("football.txt");
     let data_str = input.split_once('\n').expect("Could not split from top").1;
 
-    let entries: Vec<TeamStats> = data_str.lines()
+    let entry_iter = data_str.lines()
         .filter(|line| !line.contains("---") && !line.is_empty())
-        .map(|line| line.parse::<TeamStats>().unwrap() )
-        .collect();
+        .map(|line| line.parse::<TeamStats>().unwrap() );
 
-    let for_against_differences: Vec<u8> = entries.iter()
-        .map(|entry| u8::abs_diff(entry.F, entry.A))
-        .collect();
+    let for_against_difference_iter = entry_iter
+        .map(|entry| u8::abs_diff(entry.F, entry.A));
 
-    let min_f_a_difference = for_against_differences.iter().min().unwrap();
+    let min_f_a_difference = for_against_difference_iter.min().unwrap();
     println!("Min For/Against difference: {}", min_f_a_difference)
 }
 
@@ -101,19 +99,18 @@ fn part_1() {
         .split_once('\n').expect("split first time").1
         .split_once('\n').expect("split second time").1;
     
-    let entries: Vec<WeatherDataEntry> = data_str.lines()
+    let entry_iter = data_str.lines()
         .filter(|line| !line.contains("mo") && !line.is_empty())
-        .map(|line| line.parse::<WeatherDataEntry>().unwrap())
-        .collect();
+        .map(|line| line.parse::<WeatherDataEntry>().unwrap());
     
-    let temperature_differences: Vec<u8> = entries.iter()
+    let temperature_differences: Vec<u8> = entry_iter
         .map(|entry| u8::abs_diff(*entry.MxT.val(), *entry.MnT.val()))
         .collect();
     
     let min_difference = temperature_differences.iter().min().expect("Could not find min value");
-    println!("Min difference: {}", min_difference);
+    println!("Min temperature difference: {}", min_difference);
     let max_difference = temperature_differences.iter().max().expect("Could not find max value");
-    println!("Max difference: {}", max_difference);
+    println!("Max temperature difference: {}", max_difference);
 }
 
 impl FromStr for WeatherDataEntry {
@@ -142,18 +139,17 @@ impl FromStr for WeatherDataEntry {
         let (AvT, mut line) = line.split_once(' ').ok_or("Couldn't split AvT from line")?;
         let AvT = AvT.parse().map_err(|_| "Couldn't parse AvT as f32")?;
 
-        let HDDay;
-        {
+        let HDDay = {
             // check if entry exists, then seperate and parse
             let (HDDay_entry, line_without_hdday_entry) = line.split_at(7);
             if HDDay_entry.chars().any(|c| c != ' ') {
                 line = line_without_hdday_entry;
                 let value = HDDay_entry.trim().parse().map_err(|_| "Couldn't parse HDDay entry as u8")?;
-                HDDay = Some(value);
+                Some(value)
             } else {
-                HDDay = None;
+                None
             }
-        }
+        };
         
         line = line.trim_start();
         // dbg!(line);
@@ -169,8 +165,7 @@ impl FromStr for WeatherDataEntry {
         let (TPcpn, mut line) = line.split_once(' ').ok_or("Couldn't split TPcpn from line")?;
         let TPcpn = TPcpn.parse().map_err(|_| "Couldn't parse TPcpn as f32")?;
         
-        let WxType;
-        {
+        let WxType = {
             let mut WxType_mut = HashSet::new();
             let (WxType_entry, line_without_WxType_entry) = line.split_at(7);
             let WxType_chars = WxType_entry.chars().filter(|c| c != &' ');
@@ -186,8 +181,8 @@ impl FromStr for WeatherDataEntry {
                     }
                 }
             }
-            WxType = WxType_mut;
-        }
+            WxType_mut
+        };
         
         line = line.trim_start();
         // dbg!(line);
