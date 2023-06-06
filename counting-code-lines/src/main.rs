@@ -10,38 +10,45 @@ pub mod code_analysis;
 struct CommandInfo {
     // name: &'static str,
     env_var: &'static str,
-    description: &'static str
+    _description: &'static str
 }
 const IGNORE_DIR_KEY: &str = "ignore_dirs";
 const FILE_TYPE_KEY: &str = "file_types";
+const ANALYSIS_TYPE_KEY: &str = "analysis_type";
 static COMMANDS: phf::Map<&'static str, CommandInfo> = phf_map! {
-    "ignore_dirs" => CommandInfo { /*name: IGNORE_DIR_KEY,*/ env_var: "GLOBAL_IGNORED_DIRS", description: "list of directory names to ignore" },
-    "file_types" => CommandInfo { /*name: FILE_TYPE_KEY,*/ env_var: "GLOBAL_FILE_TYPES", description: "list of file type extensions to search for" },
+    "ignore_dirs" => CommandInfo { /*name: IGNORE_DIR_KEY,*/ env_var: "GLOBAL_IGNORED_DIRS", _description: "list of directory names to ignore" },
+    "file_types" => CommandInfo { /*name: FILE_TYPE_KEY,*/ env_var: "GLOBAL_FILE_TYPES", _description: "list of file type extensions to search for" },
+    "analysis_type" => CommandInfo { /*name: FILE_TYPE_KEY,*/ env_var: "GLOBAL_ANALYSIS_TYPE", _description: "what kind of analysis we should (descriptive, statistic)" },
 };
     
 const ENV_VAR_SPLIT: char = ';';
 fn load_command_env_variables(command: &CommandInfo) -> Option<Vec<String>> {
     let command_var = env::var(command.env_var);
     let Ok(var_str) = command_var else {
-        eprintln!("Could not find {} using enviromental variable '{}'", command.description, command.env_var);
+        // eprintln!("Could not find {} using enviromental variable '{}'", command.description, command.env_var);
         return None;
     };
     let loaded: Vec<String> = var_str.split(ENV_VAR_SPLIT).map(|value| value.trim().to_string()).collect();
-    println!("Loaded environmental variables: [{}]", loaded.join(", "));
+    // println!("Loaded environmental variables: [{}]", loaded.join(", "));
     Some(loaded)
 }
 
 fn main() {
     let dir = env::current_dir().expect("User had no environment to get directory from");
     let all_args: Vec<String> = env::args().skip(1).collect(); // skip executable path, then collect
+
+    if all_args.is_empty() {
+        println!("No args were provided, exiting (hint: give a relative or absolute path)");
+        return;
+    }
+
     println!("All args: {}", all_args.join(", "));
 
     let mut command_settings_map: HashMap<&'static str, Vec<String>> = HashMap::from([
-        (IGNORE_DIR_KEY, load_command_env_variables(COMMANDS.get(IGNORE_DIR_KEY).unwrap()).unwrap_or(vec![])),
-        (FILE_TYPE_KEY, load_command_env_variables(COMMANDS.get(FILE_TYPE_KEY).unwrap()).unwrap_or(vec![]))
+        (IGNORE_DIR_KEY, load_command_env_variables(COMMANDS.get(IGNORE_DIR_KEY).unwrap()).unwrap_or_default()),
+        (FILE_TYPE_KEY, load_command_env_variables(COMMANDS.get(FILE_TYPE_KEY).unwrap()).unwrap_or_default()),
     ]);
     
-    let mut total_lines = 0;
     'arg_loop: for arg in all_args.iter() {
         const LOCAL_COMMAND_ARG: &str = "--";
         const LOCAL_COMMAND_DIVIDER: char = '=';
@@ -55,27 +62,41 @@ fn main() {
                 continue;
             };
             
-            for (name, info) in COMMANDS.entries() {
-                if command_type_str.contains(name) {
-                    command_settings_map.get_mut(name).unwrap().push(command_val_str.to_string());
-                    println!("Added {} values '{}' to {} settings: [{}]", 
-                        name, command_val_str, info.description, command_settings_map.get(name).unwrap().join(", "));
+            for (name, _info) in COMMANDS.entries() {
+                if name == &ANALYSIS_TYPE_KEY {
                     continue 'arg_loop;
                 }
-            } 
+                if command_type_str.contains(name) {
+                    command_settings_map.get_mut(name).unwrap().push(command_val_str.to_string());
+                    // println!("Added {} values '{}' to {} settings: [{}]", 
+                        // name, command_val_str, info.description, command_settings_map.get(name).unwrap().join(", "));
+                    continue 'arg_loop;
+                }
+            }
             
             eprintln!("Did not understand command '{}' (value [{}]).", command_type_str, command_val_str);
 
-        } else {            
+        } else {
             let arg_path = dir.join(arg);
             let ignored_dirs = command_settings_map.get(IGNORE_DIR_KEY).unwrap().clone();
+            println!("Ignoring directories with names [{}]...", ignored_dirs.join(", "));
             let file_types = command_settings_map.get(FILE_TYPE_KEY).unwrap().clone();
+            if !file_types.is_empty() {
+                println!("Only searching for file extensions [{}]...", file_types.join(", "));
+            }
+            println!();
             let i_d_map: HashSet<String> = HashSet::from_iter(ignored_dirs);
             let f_t_map: HashSet<String> = HashSet::from_iter(file_types);
-            total_lines += count_lines_path_recursive(&arg_path, &i_d_map, &f_t_map);
+            let analysis = load_command_env_variables(COMMANDS.get(ANALYSIS_TYPE_KEY).unwrap()).unwrap_or_default();
+            if analysis.contains(&"descriptive".to_string()) {
+                analyze_path_recursive(&arg_path, &i_d_map, &f_t_map);
+                println!("\nProgram finished.");
+            } else {
+                let lines = count_lines_path_recursive(&arg_path, &i_d_map, &f_t_map);
+                println!("\nProgram finished. Total lines counted: {}", lines);
+            }
         }
     }
-    println!("Program finished. Total lines counted: {}", total_lines);
 }
 
 fn count_lines_path_recursive(path: &PathBuf, ignored_dirs: &HashSet<String>, file_types: &HashSet<String>) -> u128 {
@@ -83,33 +104,32 @@ fn count_lines_path_recursive(path: &PathBuf, ignored_dirs: &HashSet<String>, fi
         let dir_path = path;
         if let Some(dir_name_os_str) = dir_path.file_name() {
             if let Some(dir_name) = dir_name_os_str.to_str() {
-                if ignored_dirs.contains(&dir_name.to_string()) {
+                if !ignored_dirs.contains(&dir_name.to_lowercase()) {
                     // println!("Ignoring directory '{}'...", dir_name);
-                    return 0;
+                    let Ok(paths) = fs::read_dir(dir_path) else {
+                        eprintln!("{} could not be read as a directory.", dir_path.display());
+                        return 0;
+                    };
+                    
+                    let mut lines = 0;
+                    for dir_entry_fallible in paths {
+                        let Ok(dir_entry) = dir_entry_fallible else {
+                            eprintln!("Could not use dir_entry: {}", dir_entry_fallible.unwrap_err());
+                            continue;
+                        };
+                        let path = dir_entry.path();
+                        lines += count_lines_path_recursive(&path, ignored_dirs, file_types);
+                    }
+                    return lines;
                 }
             }
         }
-        let Ok(paths) = fs::read_dir(dir_path) else {
-            eprintln!("{} could not be read as a directory.", dir_path.display());
-            return 0;
-        };
-        
-        let mut lines = 0;
-        for dir_entry_fallible in paths {
-            let Ok(dir_entry) = dir_entry_fallible else {
-                eprintln!("Could not use dir_entry: {}", dir_entry_fallible.unwrap_err());
-                continue;
-            };
-            let path = dir_entry.path();
-            lines += count_lines_path_recursive(&path, ignored_dirs, file_types);
-        }
-        return lines;
     } else if path.is_file() {
         let file_path = path;
         if !file_types.is_empty() {
             if let Some(file_extension_os_str) = file_path.extension() {
                 if let Some(file_extension) = file_extension_os_str.to_str() {
-                    if file_types.contains(&file_extension.to_string()) {
+                    if file_types.contains(&file_extension.to_lowercase()) {
                         // println!("Ignoring file extension '{}'...", file_extension);
                         return count_lines_in_file(file_path);
                     }
@@ -122,13 +142,12 @@ fn count_lines_path_recursive(path: &PathBuf, ignored_dirs: &HashSet<String>, fi
     0
 }
 
-#[allow(unused)]
-fn analyze_path_recursive(path: &PathBuf, ignored_dirs: &Vec<String>, file_types: &Vec<String>) {
+fn analyze_path_recursive(path: &PathBuf, ignored_dirs: &HashSet<String>, file_types: &HashSet<String>) {
     if path.is_dir() {
         let dir_path = path;
         if let Some(dir_name_os_str) = dir_path.file_name() {
             if let Some(dir_name) = dir_name_os_str.to_str() {
-                if ignored_dirs.contains(&dir_name.to_string().to_lowercase()) {
+                if ignored_dirs.contains(&dir_name.to_lowercase()) {
                     // println!("Ignoring directory '{}'...", dir_name);
                     return;                    
                 }
@@ -152,7 +171,7 @@ fn analyze_path_recursive(path: &PathBuf, ignored_dirs: &Vec<String>, file_types
         if !file_types.is_empty() {
             if let Some(file_extension_os_str) = file_path.extension() {
                 if let Some(file_extension) = file_extension_os_str.to_str() {
-                    if file_types.contains(&file_extension.to_string()) {
+                    if file_types.contains(&file_extension.to_lowercase()) {
                         // println!("Ignoring file extension '{}'...", file_extension);
                         analyze_file(file_path);
                     }
