@@ -8,8 +8,7 @@ use phf::phf_map;
 pub mod code_analysis;
 
 struct CommandInfo {
-    // name: &'static str,
-    env_var: &'static str,
+    env_var: &'static str, 
     _description: &'static str
 }
 const IGNORE_DIR_KEY: &str = "ignore_dirs";
@@ -40,6 +39,7 @@ fn main() {
     if all_args.is_empty() {
         println!("No args were provided, exiting (hint: give a relative or absolute path)");
         return;
+        
     }
 
     println!("All args: {}", all_args.join(", "));
