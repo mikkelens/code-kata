@@ -92,7 +92,7 @@ fn shortest_word_chains_recursive(chain_history_ref: &WordPath, shortest_path_re
                 continue; // we have already tried this direction or nothing changed
             }
             if dictionary_ref.contains(new_word.as_str()) {
-                if let Some(new_path) = shortest_word_chains_recursive(&chain_with_word, &shortest_path_ref, &new_word, target_word_ref, dictionary_ref) {
+                if let Some(new_path) = shortest_word_chains_recursive(&chain_with_word, shortest_path_ref, &new_word, target_word_ref, dictionary_ref) {
                     if let Some(existing_shortest) = &shortest_path_ref {
                         if new_path.len() < existing_shortest.len() {
                             return Some(new_path);
