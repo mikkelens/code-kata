@@ -1,11 +1,10 @@
 use std::{
-	collections::HashSet,
+	collections::BTreeSet,
 	env, fs,
 	io::{stdin, stdout, Write}
 };
 
-use business_rules::{Category, Physicality, Purchase};
-use strum::IntoEnumIterator;
+use business_rules::{Purchase, Tags};
 
 fn main() {
 	println!("FIRST ARG: {}\n", env::args().next().unwrap());
@@ -25,8 +24,7 @@ fn main() {
 				println!();
 				let new_item = Purchase {
 					title:       prompt_question("Provide a title to the purchase."), // any string
-					physicality: request_physicality_answer(),
-					category:    request_category_answer()
+					identifiers: request_identifiers_answer()
 				};
 				let mut items = load_purchases();
 				if items.insert(new_item) {
@@ -79,33 +77,61 @@ fn main() {
 		println!(); // completed command operation, space for effect
 	}
 }
-fn request_category_answer() -> Category {
-	let categories = Category::iter()
-		.map(|c| format!("{c:?}"))
-		.collect::<Vec<String>>();
-	println!(
-		"What category of thing is it? [{:?}]",
-		categories.join(", ")
-	);
-	loop {
-		let unsure_answer = match get_reply().to_lowercase().as_str() {
-			"upgrade" => Some(Category::MembershipUpgrade),
-			"membership" => Some(Category::Membership),
-			"book" => Some(Category::Book),
-			"video" => Some(Category::Video),
-			_ => None
-		};
-		if let Some(valid_answer) = unsure_answer {
-			break valid_answer;
+
+fn request_identifiers_answer() -> Tags {
+	println!("Please provide some tags to identify the entry (separated by semicolon).");
+	let mut identifiers = Tags::default();
+	'modify_loop: loop {
+		// always start by adding
+		let identifiers_to_add = get_reply().split(';').map(|s| s.trim()).collect::<Vec<_>>();
+		for identifier in identifiers_to_add {
+			if !identifiers.insert(identifier.into()) {
+				println!(
+					"'{}' is already an identifier for this entry, skipping addition...",
+					identifier
+				);
+			}
 		}
-		println!("Your answer was not recognized as a valid category. Please try again.");
+		'review_loop: loop {
+			println!(
+				"Identifiers: ['{}']",
+				identifiers
+					.clone()
+					.into_iter()
+					.collect::<Vec<_>>()
+					.join("', '")
+			);
+			if promt_bool_question("Are you satisfied with the identifiers?") {
+				break 'modify_loop; // finish and return identifiers
+			} else {
+				println!("Do you want to add [A] or delete [D] modifiers? ('C' to cancel)");
+				'operation_loop: loop {
+					let reply = get_reply().to_lowercase();
+					if reply.contains('a') {
+						println!("What do you want to add? (Still separated by semicolon)");
+						continue 'modify_loop; // reuse start
+					} else if reply.contains('d') {
+						println!("What do you want to delete? (Still separated by semicolon)");
+						let identifiers_for_removal =
+							get_reply().split(';').map(|s| s.trim()).collect::<Vec<_>>();
+						for identifier in identifiers_for_removal {
+							if !identifiers.remove(identifier.into()) {
+								println!(
+									"'{}' is not an identifier for this entry, skipping removal...",
+									identifier
+								);
+							}
+						}
+						continue 'review_loop; // modify complete
+					} else {
+						println!("You must use one of the key letters above to signal intent.");
+						continue 'operation_loop; // try input again
+					}
+				}
+			}
+		}
 	}
-}
-fn request_physicality_answer() -> Physicality {
-	match promt_bool_question("Is it a physical thing? (Y/N)") {
-		true => Physicality::Physical,
-		false => Physicality::Nonphysical
-	}
+	identifiers
 }
 fn quick_find_item(data: Vec<Purchase>) -> Option<Purchase> {
 	let title = prompt_question("What is the title of the item?");
@@ -121,53 +147,19 @@ fn quick_find_item(data: Vec<Purchase>) -> Option<Purchase> {
 		Some(found_matches.remove(0))
 	} else {
 		println!("Multiple items with the same name was found in the dataset.");
-		let physicality_can_distinguish = found_matches
-			.iter()
-			.any(|item| item.physicality == Physicality::Physical)
-			&& found_matches
-				.iter()
-				.any(|item| item.physicality == Physicality::Physical);
-		if physicality_can_distinguish {
-			found_matches = filter_by_physicality(found_matches);
-			if found_matches.len() > 1 {
-				println!("There are multiple items with the same name *and* physicality.");
-				found_matches = filter_by_category(found_matches);
-				// category will distinguish perfectly if physicality does not
-			}
-			Some(found_matches.remove(0))
-		} else {
-			// assume hashset correctness
-			found_matches = filter_by_category(found_matches);
-			// category will distinguish perfectly if physicality does not
-			Some(found_matches.remove(0))
-		}
 	}
-}
-fn filter_by_physicality(found_matches: Vec<Purchase>) -> Vec<Purchase> {
-	let physicality = request_physicality_answer();
-	found_matches
-		.into_iter()
-		.filter(|item| item.physicality == physicality)
-		.collect()
-}
-fn filter_by_category(found_matches: Vec<Purchase>) -> Vec<Purchase> {
-	let category = request_category_answer();
-	found_matches
-		.into_iter()
-		.filter(|item| item.category == category)
-		.collect()
 }
 
 const DATA_PATH: &str = "F:/Git/Rust/code-kata/business-rules/src/all_items.json";
-fn load_purchases() -> HashSet<Purchase> {
+fn load_purchases() -> BTreeSet<Purchase> {
 	let data_string = fs::read_to_string(DATA_PATH).expect("could not read from file");
 	if data_string.is_empty() {
-		HashSet::new()
+		BTreeSet::new()
 	} else {
 		serde_json::from_str(data_string.as_str()).expect("could not parse")
 	}
 }
-fn save_purchases_overwrite(purchases: HashSet<Purchase>) {
+fn save_purchases_overwrite(purchases: BTreeSet<Purchase>) {
 	let string = serde_json::to_string_pretty(&purchases).expect("could not parse");
 	fs::write(DATA_PATH, string).expect("unable to write to file");
 }
