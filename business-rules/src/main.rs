@@ -1,10 +1,10 @@
 use std::{
-	collections::BTreeSet,
+	collections::{BTreeSet, HashSet},
 	env, fs,
 	io::{stdin, stdout, Write}
 };
 
-use business_rules::{Purchase, Tags};
+use business_rules::{Purchase, TagCollection};
 
 fn main() {
 	println!("FIRST ARG: {}\n", env::args().next().unwrap());
@@ -78,12 +78,13 @@ fn main() {
 	}
 }
 
-fn request_identifiers_answer() -> Tags {
+fn request_identifiers_answer() -> TagCollection {
 	println!("Please provide some tags to identify the entry (separated by semicolon).");
-	let mut identifiers = Tags::default();
+	let mut identifiers = TagCollection::default();
 	'modify_loop: loop {
 		// always start by adding
-		let identifiers_to_add = get_reply().split(';').map(|s| s.trim()).collect::<Vec<_>>();
+		let reply = get_reply();
+		let identifiers_to_add = reply.split(';').map(|s| s.trim()).collect::<Vec<_>>();
 		for identifier in identifiers_to_add {
 			if !identifiers.insert(identifier.into()) {
 				println!(
@@ -112,10 +113,11 @@ fn request_identifiers_answer() -> Tags {
 						continue 'modify_loop; // reuse start
 					} else if reply.contains('d') {
 						println!("What do you want to delete? (Still separated by semicolon)");
+						let reply = get_reply();
 						let identifiers_for_removal =
-							get_reply().split(';').map(|s| s.trim()).collect::<Vec<_>>();
+							reply.split(';').map(|s| s.trim()).collect::<Vec<&str>>();
 						for identifier in identifiers_for_removal {
-							if !identifiers.remove(identifier.into()) {
+							if !identifiers.remove(identifier) {
 								println!(
 									"'{}' is not an identifier for this entry, skipping removal...",
 									identifier
@@ -147,6 +149,22 @@ fn quick_find_item(data: Vec<Purchase>) -> Option<Purchase> {
 		Some(found_matches.remove(0))
 	} else {
 		println!("Multiple items with the same name was found in the dataset.");
+		let unique_tags = {
+			let mut tags: HashSet<String> = HashSet::new();
+			for found_match in found_matches {
+				for tag in found_match.get_all_tags() {
+					tags.insert(tag.to_string());
+				}
+			}
+			tags
+		};
+		let tag_list: Vec<_> = unique_tags.into_iter().collect();
+		println!(
+			"Tags present for entries with this name: [{}] (unordered)",
+			tag_list.join(", ")
+		);
+
+		todo!()
 	}
 }
 

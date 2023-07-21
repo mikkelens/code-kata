@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 // #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord,
 // Clone)]
-pub type Tags = BTreeSet<String>;
+pub type TagCollection = BTreeSet<String>;
 // impl Tags {
 // 	fn new() -> Self { Tags(BTreeSet::new()) }
 // }
@@ -19,11 +19,11 @@ pub type Tags = BTreeSet<String>;
 // }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-struct AltTags(HashSet<String>);
-impl PartialOrd for AltTags {
+struct AltTagCollection(HashSet<String>);
+impl PartialOrd for AltTagCollection {
 	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
 }
-impl Ord for AltTags {
+impl Ord for AltTagCollection {
 	fn cmp(&self, other: &Self) -> std::cmp::Ordering {
 		let length_ordering = self.0.len().cmp(&self.0.len());
 		match length_ordering {
@@ -40,8 +40,8 @@ impl Ord for AltTags {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Purchase {
-	pub title:   String,
-	identifiers: Tags
+	pub title:       String,
+	pub identifiers: TagCollection
 }
 impl Purchase {
 	pub fn get_processing_steps(&self) -> Vec<&str> {
@@ -82,6 +82,13 @@ impl Purchase {
 
 	pub fn has_all_tags<T: AsRef<str>>(&self, mut values: impl Iterator<Item = T>) -> bool {
 		values.all(|value| self.identifiers.contains(value.as_ref()))
+	}
+
+	pub fn get_all_tags(&self) -> Vec<&str> {
+		self.identifiers
+			.iter()
+			.map(|s| s.as_ref())
+			.collect::<Vec<_>>()
 	}
 }
 
