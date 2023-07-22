@@ -4,7 +4,7 @@ use std::{
 	io::{stdin, stdout, Write}
 };
 
-use business_rules::{Purchase, TagCollection};
+use business_rules::{Purchase, Rule, TagCollection};
 
 fn main() {
 	println!("FIRST ARG: {}\n", env::args().next().unwrap());
@@ -13,7 +13,6 @@ fn main() {
 		println!("What do you want to do?");
 		println!(" - [C] Create a new purchase item");
 		println!(" - [D] Delete an item");
-		// println!(" - [U] Undo last operation");
 		println!(" - [P] Print item processing steps");
 		println!(" - [E] Exit");
 
@@ -52,8 +51,6 @@ fn main() {
 				} else {
 					println!("\nNo item with the provided specifications could be found.");
 				}
-			// } else if user_str.contains('u') {
-			// 	unimplemented!();
 			} else if user_str.contains('p') {
 				println!();
 				let items = load_purchases();
@@ -168,9 +165,9 @@ fn quick_find_item(data: Vec<Purchase>) -> Option<Purchase> {
 	}
 }
 
-const DATA_PATH: &str = "F:/Git/Rust/code-kata/business-rules/src/all_items.json";
+const ITEM_DATA_PATH: &str = "F:/Git/Rust/code-kata/business-rules/src/all_items.json";
 fn load_purchases() -> BTreeSet<Purchase> {
-	let data_string = fs::read_to_string(DATA_PATH).expect("could not read from file");
+	let data_string = fs::read_to_string(ITEM_DATA_PATH).expect("could not read from file");
 	if data_string.is_empty() {
 		BTreeSet::new()
 	} else {
@@ -179,7 +176,21 @@ fn load_purchases() -> BTreeSet<Purchase> {
 }
 fn save_purchases_overwrite(purchases: BTreeSet<Purchase>) {
 	let string = serde_json::to_string_pretty(&purchases).expect("could not parse");
-	fs::write(DATA_PATH, string).expect("unable to write to file");
+	fs::write(ITEM_DATA_PATH, string).expect("unable to write to file");
+}
+
+const RULE_DATA_PATH: &str = "F:/Git/Rust/code-kata/business-rules/src/all_rules.json";
+fn load_rules() -> BTreeSet<Rule> {
+	let data_string = fs::read_to_string(RULE_DATA_PATH).expect("could not read from file");
+	if data_string.is_empty() {
+		BTreeSet::new()
+	} else {
+		serde_json::from_str(data_string.as_str()).expect("could not parse")
+	}
+}
+fn save_rules_overwrite(rules: BTreeSet<Rule>) {
+	let data_string = serde_json::to_string_pretty(&rules).expect("could not parse");
+	fs::write(ITEM_DATA_PATH, data_string).expect("unable to write to file");
 }
 
 fn promt_bool_question(question: &str) -> bool {

@@ -1,5 +1,6 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::BTreeSet;
 
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
 // #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord,
@@ -18,25 +19,25 @@ pub type TagCollection = BTreeSet<String>;
 // 	fn from(value: T) -> Self { value.into() }
 // }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-struct AltTagCollection(HashSet<String>);
-impl PartialOrd for AltTagCollection {
-	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
-}
-impl Ord for AltTagCollection {
-	fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-		let length_ordering = self.0.len().cmp(&self.0.len());
-		match length_ordering {
-			std::cmp::Ordering::Equal => {
-				// unsorted comparison
-				let self_tags: Vec<_> = self.0.iter().collect();
-				let other_tags: Vec<_> = other.0.iter().collect();
-				self_tags.cmp(&other_tags)
-			},
-			unequal_ord => unequal_ord
-		}
-	}
-}
+// #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+// struct AltTagCollection(HashSet<String>);
+// impl PartialOrd for AltTagCollection {
+// 	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+// Some(self.cmp(other)) } }
+// impl Ord for AltTagCollection {
+// 	fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+// 		let length_ordering = self.0.len().cmp(&self.0.len());
+// 		match length_ordering {
+// 			std::cmp::Ordering::Equal => {
+// 				// unsorted comparison
+// 				let self_tags: Vec<_> = self.0.iter().collect();
+// 				let other_tags: Vec<_> = other.0.iter().collect();
+// 				self_tags.cmp(&other_tags)
+// 			},
+// 			unequal_ord => unequal_ord
+// 		}
+// 	}
+// }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Purchase {
@@ -92,6 +93,28 @@ impl Purchase {
 	}
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RuleTrigger {
+	Never,
+	Always,
+	NameMatch(String),
+	AnyIdentifiers(TagCollection),
+	AllIdentifiers(TagCollection),
+	CombinedRule(Box<RuleTrigger>, Box<RuleTrigger>)
+}
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Rule {
+	pub title:          String,
+	pub process_action: String, // process
+	pub trigger:        RuleTrigger
+}
+impl Rule {
+	fn triggered_by(&self, purchase: &Purchase) -> bool {
+		//
+		todo!()
+	}
+}
+
 const GENERATE_SLIP: &str = "generate a packing slip for shipping";
 const DUPLICATE_SLIP: &str = "create a duplicate packing slip for the royalty department";
 const ACTIVATE_MEMBERSHIP: &str = "activate that membership";
@@ -104,6 +127,14 @@ const GENERATE_COMMISION: &str = "generate a commission payment to the agent";
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	lazy_static! {
+		static ref RULES_SAMPLE: BTreeSet<Rule> = BTreeSet::from([Rule {
+			title:          "books generate slips".to_string(),
+			process_action: GENERATE_SLIP.to_string(),
+			trigger:        RuleTrigger::AllIdentifiers(["book".to_string()].into())
+		}]);
+	}
 
 	#[test]
 	fn book() {
