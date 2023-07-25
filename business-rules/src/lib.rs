@@ -1,6 +1,5 @@
 use std::collections::BTreeSet;
 
-use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
 // #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord,
@@ -126,6 +125,8 @@ const GENERATE_COMMISION: &str = "generate a commission payment to the agent";
 
 #[cfg(test)]
 mod tests {
+	use lazy_static::lazy_static;
+
 	use super::*;
 
 	lazy_static! {
