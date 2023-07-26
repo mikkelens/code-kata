@@ -1,4 +1,4 @@
-pub fn int_min_representation_size_ascending(number: usize) -> u8 {
+#[must_use] pub fn int_min_representation_size_ascending(number: usize) -> u8 {
     let mut min_bit_required = 1;
     let mut min_decimal_representation = 2;
     loop {
@@ -9,7 +9,7 @@ pub fn int_min_representation_size_ascending(number: usize) -> u8 {
         min_decimal_representation *= 2;
     }
 }
-pub fn int_min_representation_size_log(raw_number: usize) -> u8 {
+#[must_use] pub fn int_min_representation_size_log(raw_number: usize) -> u8 {
     // ilog2() must be shifted!
     // target: 0 -> 1 bit, 1 -> 1 bit, 2 -> 2 bits, 3 -> 2 bits, 4 -> 3 bits
     // ilog2: 0 -> (crash), 1 -> 0,    2 -> 1,      3 -> 1,      4 -> 2

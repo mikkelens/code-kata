@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 pub type Item = char;
 pub type Dependencies = HashSet<Item>;
-pub fn parse_to_map(s: &str) -> BTreeMap<Item, Dependencies> {
+#[must_use] pub fn parse_to_map(s: &str) -> BTreeMap<Item, Dependencies> {
     let map: BTreeMap<Item, Dependencies> = s.lines().map(|line| {
         let (first, second) = line.split_once("  ").unwrap();
         (   {

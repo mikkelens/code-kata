@@ -29,16 +29,17 @@ impl FromStr for CalcApproach {
 		} else if s.contains("stack") {
 			Ok(CalcApproach::Single(SingleCalc::Restacking))
 		} else {
-			Err("".into())
+			Err(String::new())
 		}
 	}
 }
 
 #[inline]
+#[must_use]
 pub fn calc_naive(digit_count: usize) -> usize {
 	let digit_range = 0..digit_count;
 
-	let upper_bound = 2usize.pow(digit_count as u32);
+	let upper_bound = 2usize.pow(digit_count.try_into().expect("64bit platform"));
 	let range_of_ints_in_digits = 1..upper_bound;
 	// dbg!(&range_of_ints_in_digits);
 
@@ -52,9 +53,8 @@ pub fn calc_naive(digit_count: usize) -> usize {
 			if bit == 1 {
 				if just_saw_1 {
 					continue 'numbers; // try next
-				} else {
-					just_saw_1 = true;
 				}
+				just_saw_1 = true;
 			} else {
 				just_saw_1 = false;
 			}
@@ -66,6 +66,7 @@ pub fn calc_naive(digit_count: usize) -> usize {
 }
 
 #[inline]
+#[must_use]
 pub fn calc_restacking(digit_count: usize) -> usize {
 	let mut prev = 1; // kicks off incrementation from zero and up
 	let mut current = 2; // result of zero
@@ -82,6 +83,7 @@ pub fn calc_restacking(digit_count: usize) -> usize {
 pub type OrderedResults = Vec<usize>;
 
 #[inline]
+#[must_use]
 pub fn calc_restacking_reusing(digit_count_range: &RangeInclusive<usize>) -> OrderedResults {
 	let mut prev = 1; // kicks off incrementation from zero and up
 	let mut current = 2; // result of zero
@@ -94,7 +96,7 @@ pub fn calc_restacking_reusing(digit_count_range: &RangeInclusive<usize>) -> Ord
 		current = new;
 
 		if digit_count_range.contains(&i) {
-			results.push(current)
+			results.push(current);
 		}
 	}
 

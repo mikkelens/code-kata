@@ -10,7 +10,7 @@ mod tests {
         let expected_output: Vec<char> = "aaaaabbbbcccdeeeeeghhhiiiiklllllllmnnnnooopprsssstttuuvwyyyy"
             .chars()
             .collect();
-        vec.sort();
+        vec.sort_unstable();
         assert_eq!(vec, expected_output);
     }
 }

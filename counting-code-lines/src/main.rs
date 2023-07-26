@@ -49,7 +49,7 @@ fn main() {
         (FILE_TYPE_KEY, load_command_env_variables(COMMANDS.get(FILE_TYPE_KEY).unwrap()).unwrap_or_default()),
     ]);
     
-    'arg_loop: for arg in all_args.iter() {
+    'arg_loop: for arg in &all_args {
         const LOCAL_COMMAND_ARG: &str = "--";
         const LOCAL_COMMAND_DIVIDER: char = '=';
         let command_trim = arg.trim_start_matches(LOCAL_COMMAND_ARG);
@@ -188,7 +188,7 @@ fn count_lines_in_file(file_path: &PathBuf) -> u128 {
         eprintln!("{:?} could not be read as a file to a string.", file_path);
         return 0;
     };
-    code_analysis::count_valid_code_lines(&file_str) as u128
+    u128::from(code_analysis::count_valid_code_lines(&file_str))
 }
 
 fn analyze_file(file_path: &PathBuf) {

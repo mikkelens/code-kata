@@ -57,7 +57,7 @@ impl ReadState {
     }
 }
 
-pub fn count_valid_code_lines(literal: &str) -> u32 {
+#[must_use] pub fn count_valid_code_lines(literal: &str) -> u32 {
     // println!();
 
     let mut lines_with_symbol = 0;

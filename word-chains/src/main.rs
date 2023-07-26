@@ -144,7 +144,7 @@ mod tests {
 		let all_words: HashSet<&str> = WORDLIST.lines().collect();
 		let known_path: WordPath = CAT_INTO_DOG_STR
 			.lines()
-			.map(|line| line.to_string())
+			.map(std::string::ToString::to_string)
 			.collect();
 		let cat = known_path.first().unwrap();
 		let dog = known_path.last().unwrap();

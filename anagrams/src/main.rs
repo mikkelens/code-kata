@@ -14,7 +14,7 @@ fn main() {
             // dbg!(&word);
             let word_sorted = {
                 let mut word_chars: Vec<char> = word.chars().collect();
-                word_chars.sort();
+                word_chars.sort_unstable();
                 String::from_iter(word_chars)
             };
             // dbg!(&word_sorted);
@@ -35,7 +35,7 @@ fn main() {
     let anagram_map: HashMap<String, Vec<&str>> = word_map.into_iter().filter(|(_, words)| words.len() > 1).collect();
     println!("Created anagram hashmap from word hashmap.");
     
-    println!("Anagram hashmap contains {} keys, with {} values in total.", anagram_map.keys().len(), anagram_map.values().map(|words| words.len()).sum::<usize>());
+    println!("Anagram hashmap contains {} keys, with {} values in total.", anagram_map.keys().len(), anagram_map.values().map(std::vec::Vec::len).sum::<usize>());
     
     let all_anagrams: Vec<(&String, &Vec<&str>)> = anagram_map.iter().collect();
 
