@@ -1,15 +1,65 @@
 [
-    {
-        "title": "do what I want",
-        "process_action": "give me the keyboard or muffin",
-        "trigger": {
-            "Identifier": {
-                "identifiers": [
-                    "keyboard",
-                    "muffin"
-                ],
-                "condition": "Any"
-            }
-        }
+  {
+    "title": "activate memberships",
+    "process_action": "activate the membership that was paid for",
+    "trigger": {
+      "Identifier": {
+        "identifiers": [
+          "membership"
+        ],
+        "condition": "Any"
+      }
     }
+  },
+  {
+    "title": "apply membership upgrades",
+    "process_action": "upgrade the membership that was paid for",
+    "trigger": {
+      "Identifier": {
+        "identifiers": [
+          "membership",
+          "upgrade"
+        ],
+        "condition": "All"
+      }
+    }
+  },
+  {
+    "title": "books get duplicate packing slip",
+    "process_action": "create a duplicate packing slip for the royalty department",
+    "trigger": {
+      "Identifier": {
+        "identifiers": [
+          "book"
+        ],
+        "condition": "Any"
+      }
+    }
+  },
+  {
+    "title": "do what I want",
+    "process_action": "give me the keyboard or muffin",
+    "trigger": {
+      "Identifier": {
+        "identifiers": [
+          "keyboard",
+          "muffin"
+        ],
+        "condition": "Any"
+      }
+    }
+  },
+  {
+    "title": "do what I want",
+    "process_action": "give me the keyboard or muffin",
+    "trigger": {
+      "Identifier": {
+        "identifiers": [
+          "keyboard",
+          "muffin"
+        ],
+        "condition": "Any"
+      }
+    }
+  }
 ]

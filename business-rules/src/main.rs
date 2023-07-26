@@ -13,14 +13,22 @@ fn main() {
 		const DELETE_PURCHASE_STR: &str = "DP";
 		const ADD_RULE_STR: &str = "AR";
 		const DELETE_RULE_STR: &str = "DR";
-		const PRINT_STR: &str = "PI";
+		const PRINT_INDIVIDUAL_STR: &str = "PI";
+		const PRINT_ALL_STR: &str = "PA";
 		const EXIT_CHAR: char = 'E';
 		println!("What do you want to do?");
 		println!(" - [{}] Add purchase entry", ADD_PURCHASE_STR);
 		println!(" - [{}] Delete purchase entry", DELETE_PURCHASE_STR);
 		println!(" - [{}] Add rule", ADD_RULE_STR);
 		println!(" - [{}] Delete rule", DELETE_RULE_STR);
-		println!(" - [{}] Print steps for processing", PRINT_STR);
+		println!(
+			" - [{}] Print processing steps for individual purchase",
+			PRINT_INDIVIDUAL_STR
+		);
+		println!(
+			" - [{}] Print processing steps for *all* purchases",
+			PRINT_ALL_STR
+		);
 		println!(" - [{}] Exit", EXIT_CHAR);
 
 		'input_loop: loop {
@@ -101,22 +109,52 @@ fn main() {
 						println!("\nNo rule with the provided specifications could be found.");
 					}
 				},
-				s if s.contains(PRINT_STR) => {
+				s if s.contains(PRINT_INDIVIDUAL_STR) => {
 					println!();
-					let items = load_purchases();
-					let possible_item = quick_find_purchase(items.into_iter().collect());
-					if let Some(existing_item) = possible_item {
-						let rules = load_rules();
-						if rules.is_empty() {
-							println!("\nThis purchase does trigger any processing rules.");
-						} else {
-							println!(
-								"\nThe processing steps for this items are the following:\n - {}",
-								existing_item.get_processing_steps(&rules).join("\n - ")
-							);
-						}
+					let rules = load_rules();
+					if rules.is_empty() {
+						println!("There are currently no rules to trigger any processes.");
 					} else {
-						println!("No item with the provided specifications could be found.");
+						let purchases = load_purchases();
+						let possible_purchase =
+							quick_find_purchase(purchases.into_iter().collect());
+						println!();
+						if let Some(purchase) = possible_purchase {
+							let processing_steps = purchase.get_processing_steps(&rules);
+							if processing_steps.is_empty() {
+								println!("This purchase does trigger any processing rules.");
+							} else {
+								println!(
+									"The processing steps for this purchase are the following:\n \
+									 - {}",
+									processing_steps.join("\n - ")
+								);
+							}
+						} else {
+							println!("No item with the provided specifications could be found.");
+						}
+					}
+				},
+				s if s.contains(PRINT_ALL_STR) => {
+					println!();
+					let all_purchases = load_purchases();
+					let rules = load_rules();
+					if rules.is_empty() {
+						println!("There are currently no rules to trigger any processes.");
+					} else {
+						for (index, purchase) in all_purchases.iter().enumerate() {
+							println!("PURCHASE {}:\n{:?}", index, purchase);
+							let processing_steps = purchase.get_processing_steps(&rules);
+							if processing_steps.is_empty() {
+								println!("This purchase does trigger any processing rules.");
+							} else {
+								println!(
+									"The processing steps for this purchase are the following:\n \
+									 - {}\n",
+									processing_steps.join("\n - ")
+								);
+							}
+						}
 					}
 				},
 				s if s.contains(EXIT_CHAR) => break 'program_loop,
@@ -213,24 +251,34 @@ fn request_rule_trigger_answer() -> RuleTrigger {
 					"What should the title of the purchase be for this rule to trigger?"
 				)
 			},
-			s if s.contains("identifier") => RuleTrigger::Identifier {
-				identifiers: request_identifiers_answer(),
-				condition:   'condition_parse: loop {
-					println!("Select the condition to trigger this Identifier rule:");
-					println!(" - [None] of the identifiers can be present");
-					println!(" - [Any] of the identifiers have to be present");
-					println!(" - [All] of the identifiers have to be present");
-					let reply = get_reply();
-					break 'condition_parse match reply.to_lowercase() {
-						s if s.contains("none") => IdentifierCondition::None,
-						s if s.contains("any") => IdentifierCondition::Any,
-						s if s.contains("all") => IdentifierCondition::All,
-						s => {
-							println!("'{}' was not recognized as one of the options.", s);
-							println!("Try again.");
-							continue 'condition_parse;
-						}
-					};
+			s if s.contains("identifier") => {
+				let identifiers = request_identifiers_answer();
+				let condition = match identifiers.len() {
+					1 => {
+						println!("Condition of single identifier is set to 'Any' by default.");
+						IdentifierCondition::Any
+					},
+					_ => 'condition_parse: loop {
+						println!("Select the condition to trigger this Identifier rule:");
+						println!(" - [None] of the identifiers can be present");
+						println!(" - [Any] of the identifiers have to be present");
+						println!(" - [All] of the identifiers have to be present");
+						let reply = get_reply();
+						break 'condition_parse match reply.to_lowercase() {
+							s if s.contains("none") => IdentifierCondition::None,
+							s if s.contains("any") => IdentifierCondition::Any,
+							s if s.contains("all") => IdentifierCondition::All,
+							s => {
+								println!("'{}' was not recognized as one of the options.", s);
+								println!("Try again.");
+								continue 'condition_parse;
+							}
+						};
+					}
+				};
+				RuleTrigger::Identifier {
+					identifiers,
+					condition
 				}
 			},
 			s if s.contains("combination") => {
@@ -363,29 +411,27 @@ fn quick_find_rule(data: Vec<Rule>) -> Option<Rule> {
 }
 
 fn load_set<T: serde::de::DeserializeOwned + Ord>(path: &str) -> BTreeSet<T> {
-	let data_string: String = fs::read_to_string(path).expect("could not read from file");
-	if data_string.is_empty() {
-		BTreeSet::new()
-	} else {
-		'format_parse: loop {
-			if let Ok(purchases) = serde_json::from_str(data_string.as_str()) {
-				break 'format_parse purchases;
-			} else {
-				println!(
-					"Could not parse data as {} from path '{}'",
-					type_name::<BTreeSet<Purchase>>(),
-					path
-				);
-				println!("Press enter to retry.");
-				let _ = read_line();
-			}
+	'reading: loop {
+		let data_string: String = fs::read_to_string(path).expect("could not read from file");
+		if data_string.is_empty() {
+			break 'reading BTreeSet::new();
+		} else if let Ok(set) = serde_json::from_str(data_string.as_str()) {
+			break 'reading set;
+		} else {
+			println!(
+				"Could not parse data as {} from path '{}'",
+				type_name::<BTreeSet<Purchase>>(),
+				path
+			);
+			println!("Press enter to retry.");
+			let _ = read_line();
 		}
 	}
 }
 fn save_set_overwrite<T: serde::Serialize>(set: BTreeSet<T>, path: &str) {
 	let data_string = serde_json::to_string_pretty(&set).expect("should always be able to parse");
 	'write: loop {
-		if fs::write(PURCHASE_DATA_PATH, data_string.clone()).is_err() {
+		if fs::write(path, data_string.clone()).is_err() {
 			println!(
 				"Could not write data as {} to path '{}'.",
 				type_name::<BTreeSet<Purchase>>(),
@@ -431,7 +477,7 @@ fn prompt_question(question: &str) -> String {
 fn get_reply() -> String {
 	print!("> ");
 	// flush enables us to write without a newline and have it display pre-input
-	stdout().flush().expect("flush failed");
+	stdout().flush().expect("flush failed"); // possibly breaks everything in certain terminal environments
 	read_line().trim().to_string()
 }
 fn read_line() -> String {
