@@ -2,6 +2,7 @@ use std::collections::{BTreeSet, HashSet};
 
 mod data;
 
+#[allow(clippy::wildcard_imports)]
 use data::{io::*, types::*};
 
 fn main() {
@@ -33,127 +34,27 @@ fn main() {
 
 			match user_str.to_uppercase() {
 				s if s.contains(ADD_PURCHASE_STR) => {
-					println!();
-					let new_purchase = Purchase {
-						title:       prompt_question("Provide a title to the purchase."),
-						identifiers: request_identifiers_answer()
-					};
-					let mut purchases = load_purchases();
-					if purchases.insert(new_purchase) {
-						save_purchases(purchases);
-						println!("\nSaved item into dataset.");
-					} else {
-						println!(
-							"\nThis exact item already exists in the dataset, skipping saving."
-						);
-					}
+					add_purchase();
 				},
 				s if s.contains(DELETE_PURCHASE_STR) => {
 					println!();
-					println!("In order to delete a purchase we must first find it.");
-					let purchases = load_purchases();
-					let mut updated_purchases = purchases.clone();
-					if let Some(purchase) = quick_find_purchase(purchases.into_iter().collect()) {
-						let confirmation_question =
-							format!("Are you sure you want to delete...\n{:?}\n...?", purchase);
-						if get_yes_no_answer(&confirmation_question) {
-							updated_purchases.remove(&purchase);
-							save_purchases(updated_purchases);
-							println!("\nPurchase was removed from dataset.")
-						} else {
-							println!("\nPurchase was kept in dataset.");
-						}
-					} else {
-						println!("\nNo purchase with the provided specifications could be found.");
-					}
+					delete_purchase();
 				},
 				s if s.contains(ADD_RULE_STR) => {
 					println!();
-					let rule = Rule {
-						title:          prompt_question("What should the title of this rule be?"),
-						process_action: prompt_question(
-							"What should happen when this rule is triggered?"
-						),
-						trigger:        request_rule_trigger_answer()
-					};
-					let mut rules = load_rules();
-
-					if rules.insert(rule) {
-						save_rules(rules);
-						println!("\nSaved rule into dataset.");
-					} else {
-						println!(
-							"\nThis exact rule already exists in the dataset, skipping saving."
-						);
-					}
+					add_rule();
 				},
 				s if s.contains(DELETE_RULE_STR) => {
 					println!();
-					println!("In order to delete a rule we must first find it.");
-					let rules = load_rules();
-					let mut updated_rules = rules.clone();
-					if let Some(rule) = quick_find_rule(rules.into_iter().collect()) {
-						let confirmation_question =
-							format!("Are you sure you want to delete...\n{:?}\n...?", rule);
-						if get_yes_no_answer(&confirmation_question) {
-							updated_rules.remove(&rule);
-							save_rules(updated_rules);
-							println!("\nRule was removed from dataset.")
-						} else {
-							println!("\nRule was kept in dataset.");
-						}
-					} else {
-						println!("\nNo rule with the provided specifications could be found.");
-					}
+					delete_rule();
 				},
 				s if s.contains(PRINT_INDIVIDUAL_STR) => {
 					println!();
-					let rules = load_rules();
-					if rules.is_empty() {
-						println!("There are currently no rules to trigger any processes.");
-					} else {
-						let purchases = load_purchases();
-						let possible_purchase =
-							quick_find_purchase(purchases.into_iter().collect());
-						println!();
-						if let Some(purchase) = possible_purchase {
-							let processing_steps = purchase.get_processing_steps(&rules);
-							if processing_steps.is_empty() {
-								println!("This purchase does trigger any processing rules.");
-							} else {
-								println!(
-									"The processing steps for this purchase are the following:\n \
-									 - {}",
-									processing_steps.join("\n - ")
-								);
-							}
-						} else {
-							println!("No item with the provided specifications could be found.");
-						}
-					}
+					print_individual();
 				},
 				s if s.contains(PRINT_ALL_STR) => {
 					println!();
-					let all_purchases = load_purchases();
-					let rules = load_rules();
-					if rules.is_empty() {
-						println!("There are currently no rules to trigger any processes.");
-					} else {
-						for (index, purchase) in all_purchases.iter().enumerate() {
-							println!("PURCHASE {}:\n{:?}", index, purchase);
-							let processing_steps = purchase.get_processing_steps(&rules);
-							if processing_steps.is_empty() {
-								println!("This purchase does trigger any processing rules.");
-							} else {
-								println!(
-									"The processing steps for this purchase are the following:\n \
-									 - {}",
-									processing_steps.join("\n - ")
-								);
-							}
-							println!() // extra spacing
-						}
-					}
+					print_all();
 				},
 				s if s.contains(EXIT_CHAR) => break 'program_loop,
 				_ => {
@@ -169,13 +70,122 @@ fn main() {
 	}
 }
 
+fn add_purchase() {
+	println!();
+	let new_purchase = Purchase {
+		title:       prompt_question("Provide a title to the purchase."),
+		identifiers: request_identifiers_answer()
+	};
+	let mut purchases = load_purchases();
+	if purchases.insert(new_purchase) {
+		save_purchases(purchases);
+		println!("\nSaved item into dataset.");
+	} else {
+		println!("\nThis exact item already exists in the dataset, skipping saving.");
+	}
+}
+fn delete_purchase() {
+	println!("In order to delete a purchase we must first find it.");
+	let purchases = load_purchases();
+	let mut updated_purchases = purchases.clone();
+	if let Some(purchase) = quick_find_purchase(purchases.into_iter().collect()) {
+		let confirmation_question =
+			format!("Are you sure you want to delete...\n{:?}\n...?", purchase);
+		if get_yes_no_answer(&confirmation_question) {
+			updated_purchases.remove(&purchase);
+			save_purchases(updated_purchases);
+			println!("\nPurchase was removed from dataset.");
+		} else {
+			println!("\nPurchase was kept in dataset.");
+		}
+	} else {
+		println!("\nNo purchase with the provided specifications could be found.");
+	}
+}
+fn add_rule() {
+	let rule = Rule {
+		title:          prompt_question("What should the title of this rule be?"),
+		process_action: prompt_question("What should happen when this rule is triggered?"),
+		trigger:        request_rule_trigger_answer()
+	};
+	let mut rules = load_rules();
+
+	if rules.insert(rule) {
+		save_rules(rules);
+		println!("\nSaved rule into dataset.");
+	} else {
+		println!("\nThis exact rule already exists in the dataset, skipping saving.");
+	}
+}
+fn delete_rule() {
+	println!("In order to delete a rule we must first find it.");
+	let rules = load_rules();
+	let mut updated_rules = rules.clone();
+	if let Some(rule) = quick_find_rule(rules.into_iter().collect()) {
+		let confirmation_question = format!("Are you sure you want to delete...\n{:?}\n...?", rule);
+		if get_yes_no_answer(&confirmation_question) {
+			updated_rules.remove(&rule);
+			save_rules(updated_rules);
+			println!("\nRule was removed from dataset.");
+		} else {
+			println!("\nRule was kept in dataset.");
+		}
+	} else {
+		println!("\nNo rule with the provided specifications could be found.");
+	}
+}
+fn print_individual() {
+	let rules = load_rules();
+	if rules.is_empty() {
+		println!("There are currently no rules to trigger any processes.");
+	} else {
+		let purchases = load_purchases();
+		let possible_purchase = quick_find_purchase(purchases.into_iter().collect());
+		println!();
+		if let Some(purchase) = possible_purchase {
+			let processing_steps = purchase.get_processing_steps(&rules);
+			if processing_steps.is_empty() {
+				println!("This purchase does trigger any processing rules.");
+			} else {
+				println!(
+					"The processing steps for this purchase are the following:\n - {}",
+					processing_steps.join("\n - ")
+				);
+			}
+		} else {
+			println!("No item with the provided specifications could be found.");
+		}
+	}
+}
+fn print_all() {
+	let all_purchases = load_purchases();
+	let rules = load_rules();
+	if rules.is_empty() {
+		println!("There are currently no rules to trigger any processes.");
+	} else {
+		for (index, purchase) in all_purchases.iter().enumerate() {
+			println!("PURCHASE {}:\n{:?}", index, purchase);
+			let processing_steps = purchase.get_processing_steps(&rules);
+			if processing_steps.is_empty() {
+				println!("This purchase does trigger any processing rules.");
+			} else {
+				println!(
+					"The processing steps for this purchase are the following:\n - {}",
+					processing_steps.join("\n - ")
+				);
+			}
+			println!(); // extra spacing
+		}
+	}
+}
+
 fn request_identifiers_answer() -> IdentifierCollection {
 	println!("Please provide some tags (separated by semicolon).");
 	let mut identifiers = IdentifierCollection::default();
 	'modify_loop: loop {
 		// always start by adding
 		let reply = get_reply();
-		let identifiers_to_add = reply.split(';').map(|s| s.trim()).collect::<Vec<_>>();
+		let identifiers_to_add = reply.split(';').map(str::trim).collect::<Vec<_>>();
 		for identifier in identifiers_to_add {
 			if !identifiers.insert(identifier.into()) {
 				println!(
@@ -195,35 +205,33 @@ fn request_identifiers_answer() -> IdentifierCollection {
 			);
 			if get_yes_no_answer("Are you satisfied with the identifiers?") {
 				break 'modify_loop; // finish and return identifiers
-			} else {
-				println!("Do you want to add [A] or delete [D] modifiers? ('C' to cancel)");
-				'operation_loop: loop {
-					let reply = get_reply();
-					match reply.to_lowercase() {
-						s if s.contains('a') => {
-							println!("What do you want to add? (Still separated by semicolon)");
-							continue 'modify_loop; // reuse start
-						},
-						s if s.contains('d') => {
-							println!("What do you want to delete? (Still separated by semicolon)");
-							let reply = get_reply();
-							let identifiers_for_removal =
-								reply.split(';').map(|s| s.trim()).collect::<Vec<&str>>();
-							for identifier in identifiers_for_removal {
-								if !identifiers.remove(identifier) {
-									println!(
-										"'{}' is not an identifier for this entry, skipping \
-										 removal...",
-										identifier
-									);
-								}
+			}
+			println!("Do you want to add [A] or delete [D] modifiers? ('C' to cancel)");
+			'operation_loop: loop {
+				let reply = get_reply();
+				match reply.to_lowercase() {
+					s if s.contains('a') => {
+						println!("What do you want to add? (Still separated by semicolon)");
+						continue 'modify_loop; // reuse start
+					},
+					s if s.contains('d') => {
+						println!("What do you want to delete? (Still separated by semicolon)");
+						let reply = get_reply();
+						let identifiers_for_removal =
+							reply.split(';').map(str::trim).collect::<Vec<&str>>();
+						for identifier in identifiers_for_removal {
+							if !identifiers.remove(identifier) {
+								println!(
+									"'{}' is not an identifier for this entry, skipping removal...",
+									identifier
+								);
 							}
-							continue 'review_loop; // modify complete
-						},
-						_ => {
-							println!("You must use one of the key letters above to signal intent.");
-							continue 'operation_loop; // try input again
 						}
+						continue 'review_loop; // modify complete
+					},
+					_ => {
+						println!("You must use one of the key letters above to signal intent.");
+						continue 'operation_loop; // try input again
 					}
 				}
 			}
@@ -367,9 +375,8 @@ fn quick_find_purchase(data: Vec<Purchase>) -> Option<Purchase> {
 				println!("Multiple purchases share provided tag(s) in the dataset.");
 				println!("Tags present for purchases with specified name and tags:");
 				continue 'tag_narrow_loop;
-			} else {
-				break 'tag_narrow_loop;
 			}
+			break 'tag_narrow_loop;
 		}
 		Some(found_matches.remove(0))
 	}
@@ -411,11 +418,11 @@ fn quick_find_rule(data: Vec<Rule>) -> Option<Rule> {
 const PURCHASE_DATA_PATH: &str = "F:/Git/Rust/code-kata/business-rules/src/all_items.json";
 fn load_purchases() -> BTreeSet<Purchase> { load_set(PURCHASE_DATA_PATH) }
 fn save_purchases(purchases: BTreeSet<Purchase>) {
-	save_overwrite_path(purchases, PURCHASE_DATA_PATH)
+	save_overwrite_path(purchases, PURCHASE_DATA_PATH);
 }
 const RULE_DATA_PATH: &str = "F:/Git/Rust/code-kata/business-rules/src/all_rules.json";
 fn load_rules() -> BTreeSet<Rule> { load_set(RULE_DATA_PATH) }
-fn save_rules(rules: BTreeSet<Rule>) { save_overwrite_path(rules, RULE_DATA_PATH) }
+fn save_rules(rules: BTreeSet<Rule>) { save_overwrite_path(rules, RULE_DATA_PATH); }
 
 fn get_yes_no_answer(question: &str) -> bool {
 	println!("{} (Y/N)", question);
@@ -431,7 +438,7 @@ fn get_yes_no_answer(question: &str) -> bool {
 		if let Some(valid_answer) = unsure_answer {
 			break valid_answer;
 		}
-		println!("You need to answer with a yes [Y] or no [N].")
+		println!("You need to answer with a yes [Y] or no [N].");
 	}
 }
 fn prompt_question(question: &str) -> String {

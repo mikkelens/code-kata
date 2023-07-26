@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, convert::AsRef};
 
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +28,7 @@ impl Purchase {
 	pub fn get_all_ídentifiers(&self) -> Vec<&str> {
 		self.identifiers
 			.iter()
-			.map(|s| s.as_ref())
+			.map(AsRef::as_ref)
 			.collect::<Vec<_>>()
 	}
 }

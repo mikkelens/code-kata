@@ -1,0 +1,16 @@
+[workspace]
+
+members = [
+    "a-diversion",
+    "anagrams",
+    "business-rules",
+    "counting-code-lines",
+    "how-big-how-fast",
+    "data-munging",
+    "triagrams",
+    "sorting-it-out",
+    "karate-chop",
+    "supermarket-pricing",
+    "transitive-dependencies",
+    "word-chains",
+]

@@ -15,15 +15,14 @@ pub fn load_set<T: DeserializeOwned + Default>(path: &str) -> T {
 			break 'reading T::default();
 		} else if let Ok(data) = from_str(data_string.as_str()) {
 			break 'reading data;
-		} else {
-			println!(
-				"Could not parse data as {} from path '{}'",
-				type_name::<T>(),
-				path
-			);
-			println!("Press enter to retry.");
-			let _ = read_line();
 		}
+		println!(
+			"Could not parse data as {} from path '{}'",
+			type_name::<T>(),
+			path
+		);
+		println!("Press enter to retry.");
+		let _ = read_line();
 	}
 }
 pub fn save_overwrite_path<T: Serialize>(data: T, path: &str) {
