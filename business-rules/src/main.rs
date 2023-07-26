@@ -1,11 +1,8 @@
-use std::{
-	any::type_name,
-	collections::{BTreeSet, HashSet},
-	fs,
-	io::{stdin, stdout, Write}
-};
+use std::collections::{BTreeSet, HashSet};
 
-use business_rules::*;
+mod data;
+
+use data::{io::*, types::*};
 
 fn main() {
 	'program_loop: loop {
@@ -172,9 +169,9 @@ fn main() {
 	}
 }
 
-fn request_identifiers_answer() -> TagCollection {
+fn request_identifiers_answer() -> IdentifierCollection {
 	println!("Please provide some tags (separated by semicolon).");
-	let mut identifiers = TagCollection::default();
+	let mut identifiers = IdentifierCollection::default();
 	'modify_loop: loop {
 		// always start by adding
 		let reply = get_reply();
@@ -345,7 +342,7 @@ fn quick_find_purchase(data: Vec<Purchase>) -> Option<Purchase> {
 		'tag_narrow_loop: loop {
 			let unique_tags: HashSet<String> = found_matches
 				.iter()
-				.map(|found_match| found_match.get_all_tags().into_iter().collect())
+				.map(|found_match| found_match.get_all_ídentifiers().into_iter().collect())
 				.collect();
 			println!(
 				"[{}] (unordered)",
@@ -411,48 +408,14 @@ fn quick_find_rule(data: Vec<Rule>) -> Option<Rule> {
 	}
 }
 
-fn load_set<T: serde::de::DeserializeOwned + Ord>(path: &str) -> BTreeSet<T> {
-	'reading: loop {
-		let data_string: String = fs::read_to_string(path).expect("could not read from file");
-		if data_string.is_empty() {
-			break 'reading BTreeSet::new();
-		} else if let Ok(set) = serde_json::from_str(data_string.as_str()) {
-			break 'reading set;
-		} else {
-			println!(
-				"Could not parse data as {} from path '{}'",
-				type_name::<BTreeSet<Purchase>>(),
-				path
-			);
-			println!("Press enter to retry.");
-			let _ = read_line();
-		}
-	}
-}
-fn save_set_overwrite<T: serde::Serialize>(set: BTreeSet<T>, path: &str) {
-	let data_string = serde_json::to_string_pretty(&set).expect("should always be able to parse");
-	'write: loop {
-		if fs::write(path, data_string.clone()).is_err() {
-			println!(
-				"Could not write data as {} to path '{}'.",
-				type_name::<BTreeSet<Purchase>>(),
-				path
-			);
-			println!("Press enter key to retry.");
-			let _ = read_line();
-		} else {
-			break 'write;
-		}
-	}
-}
 const PURCHASE_DATA_PATH: &str = "F:/Git/Rust/code-kata/business-rules/src/all_items.json";
 fn load_purchases() -> BTreeSet<Purchase> { load_set(PURCHASE_DATA_PATH) }
 fn save_purchases(purchases: BTreeSet<Purchase>) {
-	save_set_overwrite(purchases, PURCHASE_DATA_PATH)
+	save_overwrite_path(purchases, PURCHASE_DATA_PATH)
 }
 const RULE_DATA_PATH: &str = "F:/Git/Rust/code-kata/business-rules/src/all_rules.json";
 fn load_rules() -> BTreeSet<Rule> { load_set(RULE_DATA_PATH) }
-fn save_rules(rules: BTreeSet<Rule>) { save_set_overwrite(rules, RULE_DATA_PATH) }
+fn save_rules(rules: BTreeSet<Rule>) { save_overwrite_path(rules, RULE_DATA_PATH) }
 
 fn get_yes_no_answer(question: &str) -> bool {
 	println!("{} (Y/N)", question);
@@ -474,15 +437,4 @@ fn get_yes_no_answer(question: &str) -> bool {
 fn prompt_question(question: &str) -> String {
 	println!("{question}");
 	get_reply()
-}
-fn get_reply() -> String {
-	print!("> ");
-	// flush enables us to write without a newline and have it display pre-input
-	stdout().flush().expect("flush failed"); // possibly breaks everything in certain terminal environments
-	read_line().trim().to_string()
-}
-fn read_line() -> String {
-	let mut buffer = String::new();
-	stdin().read_line(&mut buffer).expect("unable to read line");
-	buffer
 }

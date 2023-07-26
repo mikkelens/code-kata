@@ -13,4 +13,3 @@ strum = { version = "0.25", features = ["derive"] }
 criterion = "0.5"
 
 [features]
-# default = ["BTreeSet"]

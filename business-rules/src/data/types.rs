@@ -2,49 +2,16 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
-// #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord,
-// Clone)]
-pub type TagCollection = BTreeSet<String>;
-// impl Tags {
-// 	fn new() -> Self { Tags(BTreeSet::new()) }
-// }
-// impl Default for Tags {
-// 	fn default() -> Self { Self::new() }
-// }
-// impl<T> From<T> for Tags
-// where
-// 	T: AsRef<[String]> // K: AsRef<str>
-// {
-// 	fn from(value: T) -> Self { value.into() }
-// }
-
-// #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-// struct AltTagCollection(HashSet<String>);
-// impl PartialOrd for AltTagCollection {
-// 	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-// Some(self.cmp(other)) } }
-// impl Ord for AltTagCollection {
-// 	fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-// 		let length_ordering = self.0.len().cmp(&self.0.len());
-// 		match length_ordering {
-// 			std::cmp::Ordering::Equal => {
-// 				// unsorted comparison
-// 				let self_tags: Vec<_> = self.0.iter().collect();
-// 				let other_tags: Vec<_> = other.0.iter().collect();
-// 				self_tags.cmp(&other_tags)
-// 			},
-// 			unequal_ord => unequal_ord
-// 		}
-// 	}
-// }
+pub type Identifier = String;
+pub type IdentifierCollection = BTreeSet<Identifier>;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Purchase {
 	pub title:       String,
-	pub identifiers: TagCollection
+	pub identifiers: IdentifierCollection
 }
 impl Purchase {
-	pub fn get_processing_steps(&self, rules: &BTreeSet<Rule>) -> Vec<String> {
+	pub fn get_processing_steps(&self, rules: &BTreeSet<Rule>) -> Vec<Identifier> {
 		rules
 			.iter()
 			.filter(|rule| rule.trigger.triggered_by(self))
@@ -58,7 +25,7 @@ impl Purchase {
 
 	pub fn has_identifier(&self, identifier: &str) -> bool { self.identifiers.contains(identifier) }
 
-	pub fn get_all_tags(&self) -> Vec<&str> {
+	pub fn get_all_ídentifiers(&self) -> Vec<&str> {
 		self.identifiers
 			.iter()
 			.map(|s| s.as_ref())
@@ -87,7 +54,7 @@ pub enum RuleTrigger {
 		name: String
 	},
 	Identifier {
-		identifiers: TagCollection,
+		identifiers: IdentifierCollection,
 		condition:   IdentifierCondition
 	},
 	Combination {
@@ -144,9 +111,12 @@ pub struct Rule {
 
 #[cfg(test)]
 mod tests {
+	use std::collections::BTreeSet;
+
 	use lazy_static::lazy_static;
 
 	use super::*;
+
 	const GENERATE_SLIP: &str = "generate a packing slip for shipping";
 	const DUPLICATE_SLIP: &str = "create a duplicate packing slip for the royalty department";
 	const ACTIVATE_MEMBERSHIP: &str = "activate that membership";
