@@ -1,0 +1,15 @@
+[
+    {
+        "title": "do what I want",
+        "process_action": "give me the keyboard or muffin",
+        "trigger": {
+            "Identifier": {
+                "identifiers": [
+                    "keyboard",
+                    "muffin"
+                ],
+                "condition": "Any"
+            }
+        }
+    }
+]

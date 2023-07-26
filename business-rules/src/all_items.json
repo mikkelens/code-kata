@@ -1,17 +1,41 @@
 [
   {
     "title": "1984",
-    "physicality": "Nonphysical",
-    "category": "Book"
+    "identifiers": [
+      "Book"
+    ]
+  },
+  {
+    "title": "Corsair K95",
+    "identifiers": [
+      "brown_switch",
+      "cherrymx",
+      "corsair",
+      "gaming",
+      "keyboard",
+      "mechanical"
+    ]
   },
   {
     "title": "Kevin Macleoud's greatest hits (2013)",
-    "physicality": "Nonphysical",
-    "category": "Video"
+    "identifiers": [
+      "video"
+    ]
   },
   {
     "title": "Learning to Ski",
-    "physicality": "Nonphysical",
-    "category": "Video"
+    "identifiers": [
+      "video"
+    ]
+  },
+  {
+    "title": "Logitch G Pro Superlight (Black)",
+    "identifiers": [
+      "accessory",
+      "black",
+      "gaming",
+      "mouse",
+      "physical"
+    ]
   }
 ]

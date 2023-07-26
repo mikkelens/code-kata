@@ -10,14 +10,14 @@ pub fn benchmark_implementations(c: &mut Criterion) {
 		all_small_scale.bench_function(format!("naive {SMALL_RANGE:?}").as_str(), |b| {
 			b.iter(|| {
 				for i in SMALL_RANGE {
-					black_box(calc_naive(i));
+					calc_naive(black_box(i));
 				}
 			})
 		});
 		all_small_scale.bench_function(format!("restacking {SMALL_RANGE:?}").as_str(), |b| {
 			b.iter(|| {
 				for i in SMALL_RANGE {
-					black_box(calc_restacking(i));
+					calc_restacking(black_box(i));
 				}
 			})
 		});
@@ -25,7 +25,7 @@ pub fn benchmark_implementations(c: &mut Criterion) {
 			format!("restacking & recycling {SMALL_RANGE:?}").as_str(),
 			|b| {
 				b.iter(|| {
-					black_box(calc_restacking_reusing(&SMALL_RANGE));
+					calc_restacking_reusing(black_box(&SMALL_RANGE));
 				})
 			}
 		);
@@ -36,7 +36,7 @@ pub fn benchmark_implementations(c: &mut Criterion) {
 		restacking_group.bench_function(format!("restacking {LARGE_RANGE:?}").as_str(), |b| {
 			b.iter(|| {
 				for i in LARGE_RANGE {
-					black_box(calc_restacking(i));
+					calc_restacking(black_box(i));
 				}
 			})
 		});
@@ -44,7 +44,7 @@ pub fn benchmark_implementations(c: &mut Criterion) {
 			format!("restacking & recycling {LARGE_RANGE:?}").as_str(),
 			|b| {
 				b.iter(|| {
-					black_box(calc_restacking_reusing(&LARGE_RANGE));
+					calc_restacking_reusing(black_box(&LARGE_RANGE));
 				})
 			}
 		);
