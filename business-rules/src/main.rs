@@ -150,10 +150,11 @@ fn main() {
 							} else {
 								println!(
 									"The processing steps for this purchase are the following:\n \
-									 - {}\n",
+									 - {}",
 									processing_steps.join("\n - ")
 								);
 							}
+							println!() // extra spacing
 						}
 					}
 				},
