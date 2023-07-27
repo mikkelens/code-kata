@@ -1,4 +1,7 @@
-use std::{env, ops::RangeInclusive};
+use std::{
+	env,
+	ops::{Range, RangeInclusive}
+};
 
 fn main() {
 	let args: Vec<String> = env::args().skip(1).collect();
@@ -28,20 +31,7 @@ fn main() {
 	let mut digit_counts_ranges: Vec<RangeInclusive<usize>> = Vec::new();
 	for arg in &digit_count_args {
 		if arg.contains("..") {
-			let range: RangeInclusive<usize> = {
-				if arg.contains("..=") {
-					let split = arg.split_once("..=").unwrap();
-					let num1 = split.0.parse().expect("invalid number 1");
-					let num2 = split.1.parse().expect("invalid number 2");
-					num1..=num2
-				} else {
-					let split = arg.split_once("..").unwrap();
-					let num1 = split.0.parse().expect("invalid number 1");
-					let num2: usize = split.1.parse().expect("invalid number 2");
-					num1..=(num2 - 1)
-				}
-			};
-			digit_counts_ranges.push(range);
+			digit_counts_ranges.push(parse_range(arg));
 		} else {
 			let digit_count: usize = arg.parse().expect("invalid number/range");
 			if digit_count == 0 {
@@ -87,3 +77,17 @@ fn main() {
 		}
 	}
 }
+
+fn parse_range(input: &str) -> RangeInclusive<usize> {
+	if let Some(s) = input.split_once("..=") {
+		s.0.parse().expect("invalid number 1")..=s.1.parse().expect("invalid number 2")
+	} else {
+		let s = input.split_once("..").unwrap();
+		let num1: usize = s.0.parse().expect("invalid number 1");
+		let num2 = s.1.parse().expect("invalid number 2");
+		to_inclusive(num1..num2)
+	}
+}
+
+#[allow(clippy::range_minus_one)]
+fn to_inclusive(range: Range<usize>) -> RangeInclusive<usize> { range.start..=(range.end - 1) }
