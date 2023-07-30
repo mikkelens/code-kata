@@ -5,8 +5,5 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[profile.release]
-opt-level = 3
-
 [dependencies]
 phf = { version = "0.11.1", default-features = true, features = ["macros"] }
