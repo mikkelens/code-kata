@@ -41,6 +41,28 @@ pub fn save_overwrite_path<T: Serialize>(data: T, path: &str) {
 		}
 	}
 }
+
+pub fn get_yes_no_answer(question: &str) -> bool {
+	println!("{} (Y/N)", question);
+	loop {
+		let reply = get_reply().to_lowercase();
+		let unsure_answer = if reply.contains('y') {
+			Some(true)
+		} else if reply.contains('n') {
+			Some(false)
+		} else {
+			None
+		};
+		if let Some(valid_answer) = unsure_answer {
+			break valid_answer;
+		}
+		println!("You need to answer with a yes [Y] or no [N].");
+	}
+}
+pub fn prompt_question(question: &str) -> String {
+	println!("{question}");
+	get_reply()
+}
 pub fn get_reply() -> String {
 	print!("> ");
 	// flush enables us to write without a newline and have it display pre-input

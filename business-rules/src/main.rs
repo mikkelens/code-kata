@@ -423,25 +423,3 @@ fn save_purchases(purchases: BTreeSet<Purchase>) {
 const RULE_DATA_PATH: &str = "F:/Git/Rust/code-kata/business-rules/src/all_rules.json";
 fn load_rules() -> BTreeSet<Rule> { load_set(RULE_DATA_PATH) }
 fn save_rules(rules: BTreeSet<Rule>) { save_overwrite_path(rules, RULE_DATA_PATH); }
-
-fn get_yes_no_answer(question: &str) -> bool {
-	println!("{} (Y/N)", question);
-	loop {
-		let reply = get_reply().to_lowercase();
-		let unsure_answer = if reply.contains('y') {
-			Some(true)
-		} else if reply.contains('n') {
-			Some(false)
-		} else {
-			None
-		};
-		if let Some(valid_answer) = unsure_answer {
-			break valid_answer;
-		}
-		println!("You need to answer with a yes [Y] or no [N].");
-	}
-}
-fn prompt_question(question: &str) -> String {
-	println!("{question}");
-	get_reply()
-}
