@@ -107,7 +107,7 @@ fn shortest_word_chains_recursive(
 			let new_word = {
 				let mut new_chars = current_chars.clone();
 				new_chars[i] = c;
-				String::from_iter(new_chars.into_iter())
+				new_chars.into_iter().collect::<String>()
 			};
 			if chain_with_word.contains(&new_word) {
 				continue; // we have already tried this direction or nothing changed
@@ -153,20 +153,20 @@ mod tests {
 	}
 	#[test]
 	fn can_turn_lead_into_gold_within_four_steps() {
+		const SHORT_PATH_LEN: usize = 4;
 		let all_words: HashSet<&str> = WORDLIST.lines().collect();
 		let lead = "lead";
 		let gold = "gold";
 		let path = shortest_word_chains_recursive(&vec![], &None, lead, gold, &all_words);
-		const SHORT_PATH_LEN: usize = 4;
 		assert!(path.iter().any(|path| path.len() <= SHORT_PATH_LEN));
 	}
 	#[test]
 	fn can_turn_ruby_into_code_within_six_steps() {
+		const SHORT_PATH_LEN: usize = 6; // note: 5 is also possible
 		let all_words: HashSet<&str> = WORDLIST.lines().collect();
 		let lead = "ruby";
 		let gold = "code";
 		let all_paths = shortest_word_chains_recursive(&vec![], &None, lead, gold, &all_words);
-		const SHORT_PATH_LEN: usize = 6; // note: 5 is also possible
 		assert!(all_paths.iter().any(|path| path.len() <= SHORT_PATH_LEN));
 	}
 }
