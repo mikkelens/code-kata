@@ -14,3 +14,4 @@ members = [
     "transitive-dependencies",
     "word-chains",
 ]
+resolver = "2"
