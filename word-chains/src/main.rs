@@ -49,56 +49,67 @@ fn shortest_word_chains_recursive(
 	assert_eq!(current_word.len(), target_word_ref.len());
 	let chain_with_word = {
 		let mut new_chain_untill_now = chain_history_ref.clone();
+		dbg!(&current_word);
 		new_chain_untill_now.push(current_word.to_string());
 		new_chain_untill_now
 	};
-	// println!("Chain untill this point: {}", chain_with_word.join(", "));
+	eprintln!("Chain untill this point: [{}]", chain_with_word.join(", "));
 	if current_word == target_word_ref {
 		return Some(chain_with_word); // word reached, a path can be returned
 	}
-	if chain_with_word.len() >= 10
-		|| shortest_path_ref
-			.as_ref()
-			.is_some_and(|shortest| chain_with_word.len() >= shortest.len())
+	if shortest_path_ref
+		.as_ref()
+		.is_some_and(|shortest| chain_with_word.len() >= shortest.len())
+		|| chain_history_ref.len() > target_word_ref.len() * 2
 	{
 		return None;
 	}
 
 	let current_chars: Vec<char> = current_word.chars().collect();
 	let target_chars: Vec<char> = target_word_ref.chars().collect();
-	// try the straight forward ways towards target word
+
+	eprintln!("Trying the straight forward ways towards target word...");
 	for i in 0..target_word_ref.len() {
 		let new_word = {
 			let mut new_chars = current_chars.clone();
 			new_chars[i] = target_chars[i];
 			new_chars.into_iter().collect::<String>()
 		};
-		if chain_with_word.contains(&new_word) {
-			continue;
-		}
-		println!("Trying new word: {}", new_word);
+		// check if exact match
 		if new_word == target_word_ref {
-			// found target, going back up
+			eprintln!("Found target ({}), going back up...", new_word);
 			let mut succesful_chain = chain_with_word;
 			succesful_chain.push(new_word);
 			return Some(succesful_chain);
 		}
+		// check if this branch is already tried/active
+		if chain_with_word.contains(&new_word) {
+			continue;
+		}
 		// continue
 		if dictionary_ref.contains(new_word.as_str()) {
 			if let Some(new_path) = shortest_word_chains_recursive(
-				chain_history_ref,
+				&chain_with_word,
 				shortest_path_ref,
 				&new_word,
 				target_word_ref,
 				dictionary_ref
 			) {
-				// found path at level, returning it back up
-				return Some(new_path);
+				if chain_history_ref.len() > 1 {
+					eprintln!(
+						"Found path with length {}, returning it back up...",
+						new_path.len()
+					);
+					return Some(new_path);
+				} else if new_path.len() <= target_word_ref.len() {
+					eprintln!("Found path with minimum possible steps.");
+					return Some(new_path);
+				}
 			}
 		}
 	}
 
-	// try all other possible directions from current word
+	eprintln!("Trying all possible directions from current word...");
 	for i in 0..current_word.len() {
 		for c in 'a'..='z' {
 			if c == target_chars[i] {
@@ -107,7 +118,7 @@ fn shortest_word_chains_recursive(
 			let new_word = {
 				let mut new_chars = current_chars.clone();
 				new_chars[i] = c;
-				new_chars.into_iter().collect::<String>()
+				new_chars.into_iter().collect()
 			};
 			if chain_with_word.contains(&new_word) {
 				continue; // we have already tried this direction or nothing changed
@@ -148,8 +159,10 @@ mod tests {
 			.collect();
 		let cat = known_path.first().unwrap();
 		let dog = known_path.last().unwrap();
-		let path = shortest_word_chains_recursive(&vec![], &None, cat, dog, &all_words);
-		assert!(path.is_some_and(|path| path.len() == known_path.len()));
+		let path = shortest_word_chains_recursive(&vec![], &None, cat, dog, &all_words).unwrap();
+		dbg!(&path);
+		dbg!(&known_path);
+		assert_eq!(path.len(), known_path.len());
 	}
 	#[test]
 	fn can_turn_lead_into_gold_within_four_steps() {
@@ -157,8 +170,8 @@ mod tests {
 		let all_words: HashSet<&str> = WORDLIST.lines().collect();
 		let lead = "lead";
 		let gold = "gold";
-		let path = shortest_word_chains_recursive(&vec![], &None, lead, gold, &all_words);
-		assert!(path.iter().any(|path| path.len() <= SHORT_PATH_LEN));
+		let path = shortest_word_chains_recursive(&vec![], &None, lead, gold, &all_words).unwrap();
+		assert!(path.len() <= SHORT_PATH_LEN);
 	}
 	#[test]
 	fn can_turn_ruby_into_code_within_six_steps() {
@@ -166,7 +179,7 @@ mod tests {
 		let all_words: HashSet<&str> = WORDLIST.lines().collect();
 		let lead = "ruby";
 		let gold = "code";
-		let all_paths = shortest_word_chains_recursive(&vec![], &None, lead, gold, &all_words);
-		assert!(all_paths.iter().any(|path| path.len() <= SHORT_PATH_LEN));
+		let path = shortest_word_chains_recursive(&vec![], &None, lead, gold, &all_words).unwrap();
+		assert!(path.len() <= SHORT_PATH_LEN);
 	}
 }
