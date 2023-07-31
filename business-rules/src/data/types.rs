@@ -1,13 +1,21 @@
-use std::{collections::BTreeSet, convert::AsRef};
+use std::{collections::BTreeSet, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-pub type Identifier = String;
-pub type IdentifierCollection = BTreeSet<Identifier>;
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub struct Identifier(pub Arc<str>);
+impl<T: AsRef<str>> From<T> for Identifier {
+	fn from(value: T) -> Self { Identifier(Arc::from(value.as_ref())) }
+}
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone, Default)]
+pub struct IdentifierCollection(pub BTreeSet<Identifier>);
+impl From<&[Identifier]> for IdentifierCollection {
+	fn from(value: &[Identifier]) -> Self { IdentifierCollection(value.iter().cloned().collect()) }
+}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Purchase {
-	pub title:       String,
+	pub title:       Arc<str>,
 	pub identifiers: IdentifierCollection
 }
 impl Purchase {
@@ -15,7 +23,7 @@ impl Purchase {
 		rules
 			.iter()
 			.filter(|rule| rule.trigger.triggered_by(self))
-			.map(|triggered_rule| triggered_rule.process_action.clone())
+			.map(|triggered_rule| Identifier(triggered_rule.process_action.clone()))
 			.collect()
 	}
 
@@ -23,14 +31,11 @@ impl Purchase {
 		self.title.to_lowercase().trim() == other_title.to_lowercase().trim()
 	}
 
-	pub fn has_identifier(&self, identifier: &str) -> bool { self.identifiers.contains(identifier) }
-
-	pub fn get_all_ídentifiers(&self) -> Vec<&str> {
-		self.identifiers
-			.iter()
-			.map(AsRef::as_ref)
-			.collect::<Vec<_>>()
+	pub fn has_identifier(&self, identifier: &Identifier) -> bool {
+		self.identifiers.0.contains(identifier)
 	}
+
+	pub fn get_all_ídentifiers(&self) -> Vec<&Identifier> { self.identifiers.0.iter().collect() }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
@@ -51,7 +56,7 @@ pub enum RuleTrigger {
 	Never,
 	Always,
 	Title {
-		name: String
+		name: Arc<str>
 	},
 	Identifier {
 		identifiers: IdentifierCollection,
@@ -76,15 +81,18 @@ impl RuleTrigger {
 				identifiers,
 				condition
 			} => match condition {
-				IdentifierCondition::Any => {
-					identifiers.iter().any(|i| purchase.identifiers.contains(i))
-				},
-				IdentifierCondition::All => {
-					identifiers.iter().all(|i| purchase.identifiers.contains(i))
-				},
-				IdentifierCondition::None => {
-					!identifiers.iter().any(|i| purchase.identifiers.contains(i))
-				},
+				IdentifierCondition::Any => identifiers
+					.0
+					.iter()
+					.any(|i| purchase.identifiers.0.contains(i)),
+				IdentifierCondition::All => identifiers
+					.0
+					.iter()
+					.all(|i| purchase.identifiers.0.contains(i)),
+				IdentifierCondition::None => !identifiers
+					.0
+					.iter()
+					.any(|i| purchase.identifiers.0.contains(i))
 			},
 			RuleTrigger::Combination { a, b, condition } => match condition {
 				CombinationCondition::None => {
@@ -104,8 +112,8 @@ impl RuleTrigger {
 }
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Rule {
-	pub title:          String,
-	pub process_action: String, // process
+	pub title:          Arc<str>,
+	pub process_action: Arc<str>, // process
 	pub trigger:        RuleTrigger
 }
 
@@ -132,7 +140,7 @@ mod tests {
 				title:          "physical products generate slips".into(),
 				process_action: GENERATE_SLIP.into(),
 				trigger:        RuleTrigger::Identifier {
-					identifiers: ["physical".into()].into(),
+					identifiers: IdentifierCollection(["physical".into()].into()),
 					condition:   IdentifierCondition::Any
 				}
 			},
@@ -140,7 +148,7 @@ mod tests {
 				title:          "royalty gets their duplicate slip".into(),
 				process_action: DUPLICATE_SLIP.into(),
 				trigger:        RuleTrigger::Identifier {
-					identifiers: ["book".into()].into(),
+					identifiers: IdentifierCollection(["book".into()].into()),
 					condition:   IdentifierCondition::Any
 				}
 			},
@@ -148,7 +156,7 @@ mod tests {
 				title:          "memberships get activated".into(),
 				process_action: ACTIVATE_MEMBERSHIP.into(),
 				trigger:        RuleTrigger::Identifier {
-					identifiers: ["membership".into()].into(),
+					identifiers: IdentifierCollection(["membership".into()].into()),
 					condition:   IdentifierCondition::Any
 				}
 			},
@@ -156,7 +164,7 @@ mod tests {
 				title:          "membership upgrade get applied".into(),
 				process_action: APPLY_UPGRADE.into(),
 				trigger:        RuleTrigger::Identifier {
-					identifiers: ["membership upgrade".into()].into(),
+					identifiers: IdentifierCollection(["membership upgrade".into()].into()),
 					condition:   IdentifierCondition::Any
 				}
 			},
@@ -164,7 +172,9 @@ mod tests {
 				title:          "owner is informed of memberships and upgrades".into(),
 				process_action: EMAIL_OWNER.into(),
 				trigger:        RuleTrigger::Identifier {
-					identifiers: ["membership".into(), "upgrade".into()].into(),
+					identifiers: IdentifierCollection(
+						["membership".into(), "upgrade".into()].into()
+					),
 					condition:   IdentifierCondition::Any
 				}
 			},
@@ -179,7 +189,7 @@ mod tests {
 				title:          "physical products or books generate commission payment".into(),
 				process_action: GENERATE_COMMISION.into(),
 				trigger:        RuleTrigger::Identifier {
-					identifiers: ["physical".into(), "book".into()].into(),
+					identifiers: IdentifierCollection(["physical".into(), "book".into()].into()),
 					condition:   IdentifierCondition::Any
 				}
 			}
@@ -188,34 +198,34 @@ mod tests {
 
 	#[test]
 	fn book_print() {
-		let expectation: Vec<String> = vec![
+		let expectation = vec![
 			GENERATE_SLIP.into(),
 			DUPLICATE_SLIP.into(),
 			GENERATE_COMMISION.into(),
 		];
 		let purchase = Purchase {
 			title:       "1984".into(),
-			identifiers: ["physical".into(), "book".into()].into()
+			identifiers: IdentifierCollection(["physical".into(), "book".into()].into())
 		};
 		let steps = purchase.get_processing_steps(&RULES_SAMPLE);
 		assert!(expectation.iter().all(|item| steps.contains(item)));
 	}
 	#[test]
 	fn ski_mp4_print() {
-		let expectation: Vec<String> = vec![FIRST_AID_VIDEO.into()];
+		let expectation = vec![FIRST_AID_VIDEO.into()];
 		let purchase = Purchase {
 			title:       "Learning to Ski".into(),
-			identifiers: ["video".into()].into()
+			identifiers: IdentifierCollection(["video".into()].into())
 		};
 		let steps = purchase.get_processing_steps(&RULES_SAMPLE);
 		assert!(expectation.iter().all(|item| steps.contains(item)));
 	}
 	#[test]
 	fn gym_membership_print() {
-		let expectation: Vec<String> = vec![ACTIVATE_MEMBERSHIP.into(), EMAIL_OWNER.into()];
+		let expectation = vec![ACTIVATE_MEMBERSHIP.into(), EMAIL_OWNER.into()];
 		let purchase = Purchase {
 			title:       "Fitness World 3 month discount trial".into(),
-			identifiers: ["membership".into()].into()
+			identifiers: IdentifierCollection(["membership".into()].into())
 		};
 		let steps = purchase.get_processing_steps(&RULES_SAMPLE);
 		assert!(expectation.iter().all(|item| steps.contains(item)));

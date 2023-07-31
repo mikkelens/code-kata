@@ -42,8 +42,8 @@ pub fn save_overwrite_path<T: Serialize>(data: T, path: &str) {
 	}
 }
 
-pub fn get_yes_no_answer(question: &str) -> bool {
-	println!("{} (Y/N)", question);
+pub fn get_yes_no_answer<T: AsRef<str>>(question: T) -> bool {
+	println!("{} (Y/N)", question.as_ref());
 	loop {
 		let reply = get_reply().to_lowercase();
 		let unsure_answer = if reply.contains('y') {
@@ -59,8 +59,8 @@ pub fn get_yes_no_answer(question: &str) -> bool {
 		println!("You need to answer with a yes [Y] or no [N].");
 	}
 }
-pub fn prompt_question(question: &str) -> String {
-	println!("{question}");
+pub fn prompt_question<T: AsRef<str>>(question: T) -> String {
+	println!("{}", question.as_ref());
 	get_reply()
 }
 pub fn get_reply() -> String {

@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet};
+use std::{collections::BTreeSet, sync::Arc};
 
 mod data;
 
@@ -73,7 +73,7 @@ fn main() {
 fn add_purchase() {
 	println!();
 	let new_purchase = Purchase {
-		title:       prompt_question("Provide a title to the purchase."),
+		title:       Arc::from(prompt_question("Provide a title to the purchase.")),
 		identifiers: request_identifiers_answer()
 	};
 	let mut purchases = load_purchases();
@@ -91,7 +91,7 @@ fn delete_purchase() {
 	if let Some(purchase) = quick_find_purchase(purchases.into_iter().collect()) {
 		let confirmation_question =
 			format!("Are you sure you want to delete...\n{:?}\n...?", purchase);
-		if get_yes_no_answer(&confirmation_question) {
+		if get_yes_no_answer(confirmation_question) {
 			updated_purchases.remove(&purchase);
 			save_purchases(updated_purchases);
 			println!("\nPurchase was removed from dataset.");
@@ -104,8 +104,10 @@ fn delete_purchase() {
 }
 fn add_rule() {
 	let rule = Rule {
-		title:          prompt_question("What should the title of this rule be?"),
-		process_action: prompt_question("What should happen when this rule is triggered?"),
+		title:          Arc::from(prompt_question("What should the title of this rule be?")),
+		process_action: Arc::from(prompt_question(
+			"What should happen when this rule is triggered?"
+		)),
 		trigger:        request_rule_trigger_answer()
 	};
 	let mut rules = load_rules();
@@ -123,7 +125,7 @@ fn delete_rule() {
 	let mut updated_rules = rules.clone();
 	if let Some(rule) = quick_find_rule(rules.into_iter().collect()) {
 		let confirmation_question = format!("Are you sure you want to delete...\n{:?}\n...?", rule);
-		if get_yes_no_answer(&confirmation_question) {
+		if get_yes_no_answer(confirmation_question) {
 			updated_rules.remove(&rule);
 			save_rules(updated_rules);
 			println!("\nRule was removed from dataset.");
@@ -149,7 +151,11 @@ fn print_individual() {
 			} else {
 				println!(
 					"The processing steps for this purchase are the following:\n - {}",
-					processing_steps.join("\n - ")
+					processing_steps
+						.iter()
+						.map(|i| i.0.as_ref())
+						.collect::<Vec<_>>()
+						.join("\n - ")
 				);
 			}
 		} else {
@@ -171,7 +177,11 @@ fn print_all() {
 			} else {
 				println!(
 					"The processing steps for this purchase are the following:\n - {}",
-					processing_steps.join("\n - ")
+					processing_steps
+						.iter()
+						.map(|i| i.0.as_ref())
+						.collect::<Vec<_>>()
+						.join("\n - ")
 				);
 			}
 			println!(); // extra spacing
@@ -187,7 +197,7 @@ fn request_identifiers_answer() -> IdentifierCollection {
 		let reply = get_reply();
 		let identifiers_to_add = reply.split(';').map(str::trim).collect::<Vec<_>>();
 		for identifier in identifiers_to_add {
-			if !identifiers.insert(identifier.into()) {
+			if !identifiers.0.insert(identifier.into()) {
 				println!(
 					"'{}' is already an identifier for this entry, skipping addition...",
 					identifier
@@ -198,8 +208,9 @@ fn request_identifiers_answer() -> IdentifierCollection {
 			println!(
 				"Identifiers: ['{}']",
 				identifiers
-					.clone()
-					.into_iter()
+					.0
+					.iter()
+					.map(|i| i.0.as_ref())
 					.collect::<Vec<_>>()
 					.join("', '")
 			);
@@ -217,13 +228,15 @@ fn request_identifiers_answer() -> IdentifierCollection {
 					s if s.contains('d') => {
 						println!("What do you want to delete? (Still separated by semicolon)");
 						let reply = get_reply();
-						let identifiers_for_removal =
-							reply.split(';').map(str::trim).collect::<Vec<&str>>();
+						let identifiers_for_removal = reply
+							.split(';')
+							.map(|i_str| i_str.trim().into())
+							.collect::<Vec<Identifier>>();
 						for identifier in identifiers_for_removal {
-							if !identifiers.remove(identifier) {
+							if !identifiers.0.remove(&identifier) {
 								println!(
 									"'{}' is not an identifier for this entry, skipping removal...",
-									identifier
+									identifier.0
 								);
 							}
 						}
@@ -253,13 +266,13 @@ fn request_rule_trigger_answer() -> RuleTrigger {
 			s if s.contains("never") => RuleTrigger::Never,
 			s if s.contains("always") => RuleTrigger::Always,
 			s if s.contains("title") => RuleTrigger::Title {
-				name: prompt_question(
+				name: Arc::from(prompt_question(
 					"What should the title of the purchase be for this rule to trigger?"
-				)
+				))
 			},
 			s if s.contains("identifier") => {
 				let identifiers = request_identifiers_answer();
-				let condition = match identifiers.len() {
+				let condition = match identifiers.0.len() {
 					1 => {
 						println!("Condition of single identifier is set to 'Any' by default.");
 						IdentifierCondition::Any
@@ -348,27 +361,30 @@ fn quick_find_purchase(data: Vec<Purchase>) -> Option<Purchase> {
 		println!("Tags present for purchases with this name:",);
 
 		'tag_narrow_loop: loop {
-			let unique_tags: HashSet<String> = found_matches
+			let unique_tags: BTreeSet<&Identifier> = found_matches
 				.iter()
-				.map(|found_match| found_match.get_all_ídentifiers().into_iter().collect())
-				.collect();
+				.flat_map(data::types::Purchase::get_all_ídentifiers) // iter of vecs to vec
+				.collect(); // unique
 			println!(
 				"[{}] (unordered)",
-				unique_tags.into_iter().collect::<Vec<_>>().join(", ")
+				unique_tags
+					.into_iter()
+					.map(|i| i.0.as_ref())
+					.collect::<Vec<_>>()
+					.join(", ")
 			);
 			println!("Choose a tag to narrow the search by.");
 			'tag_specify_loop: loop {
-				let replied_tag = get_reply();
+				let replied_tag: Identifier = get_reply().into();
 				let tag_recognized = found_matches
 					.iter()
-					.any(|found_match| found_match.has_identifier(replied_tag.as_str()));
+					.any(|found_match| found_match.has_identifier(&replied_tag));
 				if tag_recognized {
 					println!("Tag was not found in the collection of matches.");
 					println!("Try again.");
 					continue 'tag_specify_loop;
 				}
-				found_matches
-					.retain(|found_match| found_match.has_identifier(replied_tag.as_str()));
+				found_matches.retain(|found_match| found_match.has_identifier(&replied_tag));
 				break 'tag_specify_loop;
 			}
 			if found_matches.len() > 1 {
@@ -385,7 +401,7 @@ fn quick_find_rule(data: Vec<Rule>) -> Option<Rule> {
 	let title = prompt_question("What is the title of the rule?");
 	let mut found_matches: Vec<Rule> = data
 		.into_iter()
-		.filter(|purchase| purchase.title == title)
+		.filter(|purchase| purchase.title.as_ref() == title)
 		.collect();
 	if found_matches.is_empty() {
 		None
@@ -415,11 +431,13 @@ fn quick_find_rule(data: Vec<Rule>) -> Option<Rule> {
 	}
 }
 
-const PURCHASE_DATA_PATH: &str = "F:/Git/Rust/code-kata/business-rules/src/all_items.json";
+const PURCHASE_DATA_PATH: &str =
+	r"C:\Users\mikke\Desktop\repos\rust\code-kata\business-rules\src\all_purchases.json";
 fn load_purchases() -> BTreeSet<Purchase> { load_set(PURCHASE_DATA_PATH) }
 fn save_purchases(purchases: BTreeSet<Purchase>) {
 	save_overwrite_path(purchases, PURCHASE_DATA_PATH);
 }
-const RULE_DATA_PATH: &str = "F:/Git/Rust/code-kata/business-rules/src/all_rules.json";
+const RULE_DATA_PATH: &str =
+	r"C:\Users\mikke\Desktop\repos\rust\code-kata\business-rules\src\all_rules.json";
 fn load_rules() -> BTreeSet<Rule> { load_set(RULE_DATA_PATH) }
 fn save_rules(rules: BTreeSet<Rule>) { save_overwrite_path(rules, RULE_DATA_PATH); }
