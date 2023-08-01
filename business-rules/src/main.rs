@@ -1,105 +1,206 @@
-use std::{collections::BTreeSet, sync::Arc};
+use std::{
+	collections::{BTreeMap, BTreeSet},
+	sync::Arc
+};
 
 mod data;
 
 #[allow(clippy::wildcard_imports)]
 use data::{io::*, types::*};
 
+const EXIT_CHAR: char = 'E';
+const UNRECOGNIZED_COMMAND_STR: &str =
+	"You typed an unrecognized command. Try using the letters in '[]' above.";
 fn main() {
 	'program_loop: loop {
-		const ADD_PURCHASE_STR: &str = "AP";
-		const DELETE_PURCHASE_STR: &str = "DP";
-		const ADD_RULE_STR: &str = "AR";
-		const DELETE_RULE_STR: &str = "DR";
-		const PRINT_INDIVIDUAL_STR: &str = "PI";
-		const PRINT_ALL_STR: &str = "PA";
-		const EXIT_CHAR: char = 'E';
+		const PURCHASE_DATA_STR: &str = "P";
+		const RULE_DATA_STR: &str = "R";
+		const QUERY_DATA_STR: &str = "Q";
+
 		println!("What do you want to do?");
-		println!(" - [{}] Add purchase entry", ADD_PURCHASE_STR);
-		println!(" - [{}] Delete purchase entry", DELETE_PURCHASE_STR);
-		println!(" - [{}] Add rule", ADD_RULE_STR);
-		println!(" - [{}] Delete rule", DELETE_RULE_STR);
-		println!(
-			" - [{}] Print processing steps for individual purchase",
-			PRINT_INDIVIDUAL_STR
-		);
-		println!(
-			" - [{}] Print processing steps for *all* purchases",
-			PRINT_ALL_STR
-		);
+		println!(" - [{}] Modify purchase data", PURCHASE_DATA_STR);
+		println!(" - [{}] Modify rule data", RULE_DATA_STR);
+		println!(" - [{}] Query database", QUERY_DATA_STR);
 		println!(" - [{}] Exit", EXIT_CHAR);
 
-		'input_loop: loop {
-			let user_str = get_reply(); // blocking IO
-
-			match user_str.to_uppercase() {
-				s if s.contains(ADD_PURCHASE_STR) => {
-					add_purchase();
-				},
-				s if s.contains(DELETE_PURCHASE_STR) => {
-					println!();
-					delete_purchase();
-				},
-				s if s.contains(ADD_RULE_STR) => {
-					println!();
-					add_rule();
-				},
-				s if s.contains(DELETE_RULE_STR) => {
-					println!();
-					delete_rule();
-				},
-				s if s.contains(PRINT_INDIVIDUAL_STR) => {
-					println!();
-					print_individual();
-				},
-				s if s.contains(PRINT_ALL_STR) => {
-					println!();
-					print_all();
-				},
+		let action_fn = 'input_loop: loop {
+			let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
+				s if s.contains(PURCHASE_DATA_STR) => Some(purchase_modify_decision),
+				s if s.contains(RULE_DATA_STR) => Some(rule_modify_decision),
+				s if s.contains(QUERY_DATA_STR) => Some(query_database),
 				s if s.contains(EXIT_CHAR) => break 'program_loop,
-				_ => {
-					println!(
-						"You typed an unrecognized command. Try using the letters in '[]' above."
-					);
-					continue 'input_loop;
-				}
+				_ => None
+			};
+			if let Some(action_fn) = parsed_decision {
+				break 'input_loop action_fn;
 			}
-			break 'input_loop;
-		}
-		println!(); // completed command operation, space for effect
+			print_unrecognized_command();
+		};
+		println!(); // space before
+		action_fn();
+		println!(); // space after
 	}
+}
+fn print_unrecognized_command() {
+	println!("{}", UNRECOGNIZED_COMMAND_STR);
+}
+
+const ALL_STR: &str = "A";
+const INDIVIDUAL_STR: &str = "I";
+const ORDER_STR: &str = "O";
+
+const PRINT_STR: &str = "P";
+
+const ADD_STR: &str = "A";
+const MODIFY_STR: &str = "M";
+const DELETE_STR: &str = "D";
+fn purchase_modify_decision() {
+	println!("What do you want to modify in purchase data?");
+	println!(" - [{}] Add a new purchase entry", ADD_STR);
+	println!(" - [{}] Modify an existing purchase entry", MODIFY_STR);
+	println!(" - [{}] Delete an existing purchase entry", DELETE_STR);
+	println!(" - [{}] Print information about the data", PRINT_STR);
+	println!(" - [{}] Exit", EXIT_CHAR);
+	let action_fn = 'input_loop: loop {
+		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
+			s if s.contains(ADD_STR) => Some(add_purchase),
+			s if s.contains(MODIFY_STR) => Some(modify_purchase),
+			s if s.contains(DELETE_STR) => Some(delete_purchase),
+			s if s.contains(PRINT_STR) => Some(print_purchase_data),
+			s if s.contains(EXIT_CHAR) => return,
+			_ => None
+		};
+		if let Some(action_fn) = parsed_decision {
+			break 'input_loop action_fn;
+		}
+		print_unrecognized_command();
+	};
+	println!();
+	action_fn();
+}
+fn rule_modify_decision() {
+	println!("What do you want to modify in rule data?");
+	println!(" - [{}] Add a new rule entry", ADD_STR);
+	println!(" - [{}] Modify an existing rule entry", MODIFY_STR);
+	println!(" - [{}] Delete an existing rule entry", DELETE_STR);
+	println!(" - [{}] Print information about the data", PRINT_STR);
+	println!(" - [{}] Exit", EXIT_CHAR);
+	let action_fn = 'input_loop: loop {
+		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
+			s if s.contains(ADD_STR) => Some(add_rule),
+			s if s.contains(MODIFY_STR) => unimplemented!(),
+			s if s.contains(DELETE_STR) => Some(delete_rule),
+			s if s.contains(PRINT_STR) => Some(print_rule_data),
+			s if s.contains(EXIT_CHAR) => return,
+			_ => None
+		};
+		if let Some(action_fn) = parsed_decision {
+			break 'input_loop action_fn;
+		}
+		print_unrecognized_command();
+	};
+	println!();
+	action_fn();
+}
+
+fn print_purchase_data() {
+	println!("What purchase data do you want to print out?");
+	println!(" - [{}] All of it", ALL_STR);
+	println!(" - [{}] An order of it", ORDER_STR);
+	println!(" - [{}] One of them", INDIVIDUAL_STR);
+	println!(" - [{}] Exit", EXIT_CHAR);
+	let action_fn = 'input_loop: loop {
+		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
+			s if s.contains(ALL_STR) => Some(print_purchase_data_all),
+			s if s.contains(ORDER_STR) => Some(print_purchase_data_order),
+			s if s.contains(INDIVIDUAL_STR) => Some(print_purchase_data_individual),
+			s if s.contains(EXIT_CHAR) => return,
+			_ => None
+		};
+		if let Some(action_fn) = parsed_decision {
+			break 'input_loop action_fn;
+		}
+		print_unrecognized_command();
+	};
+	println!();
+	action_fn();
+}
+fn print_rule_data() {
+	println!("What rule data do you want to print out?");
+	println!(" - [{}] All of it", ALL_STR);
+	println!(" - [{}] One of them", INDIVIDUAL_STR);
+	println!(" - [{}] Exit", EXIT_CHAR);
+	let action_fn = 'input_loop: loop {
+		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
+			s if s.contains(ALL_STR) => Some(print_rule_data_all),
+			s if s.contains(INDIVIDUAL_STR) => Some(print_rule_data_individual),
+			s if s.contains(EXIT_CHAR) => return,
+			_ => None
+		};
+		if let Some(action_fn) = parsed_decision {
+			break 'input_loop action_fn;
+		}
+		print_unrecognized_command();
+	};
+	println!();
+	action_fn();
+}
+
+fn query_database() {
+	const PROCESSING_STR: &str = "P";
+	println!("What do you want to use the database for?");
+	println!(" - [{}] Print processing information", PROCESSING_STR);
+
+	let action_fn = 'input_loop: loop {
+		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
+			s if s.contains(PROCESSING_STR) => Some(print_processing_information),
+			s if s.contains(EXIT_CHAR) => return,
+			_ => None
+		};
+		if let Some(action_fn) = parsed_decision {
+			break 'input_loop action_fn;
+		}
+		print_unrecognized_command();
+	};
+	println!();
+	action_fn();
+	println!();
+}
+fn print_processing_information() {
+	println!("How much processing information do you want to print out?");
+	println!(" - [{}] All purchases", ALL_STR);
+	println!(" - [{}] Order of purchases", ORDER_STR);
+	println!(" - [{}] Individual purchase", INDIVIDUAL_STR);
+	println!(" - [{}] Exit", EXIT_CHAR);
+
+	let action_fn = 'input_loop: loop {
+		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
+			s if s.contains(ALL_STR) => Some(print_processing_all),
+			s if s.contains(ORDER_STR) => Some(print_processing_order),
+			s if s.contains(INDIVIDUAL_STR) => Some(print_processing_individual),
+			s if s.contains(EXIT_CHAR) => return,
+			_ => None
+		};
+		if let Some(action_fn) = parsed_decision {
+			break 'input_loop action_fn;
+		}
+		print_unrecognized_command();
+	};
+	println!();
+	action_fn();
 }
 
 fn add_purchase() {
-	println!();
 	let new_purchase = Purchase {
 		title:       Arc::from(prompt_question("Provide a title to the purchase.")),
 		identifiers: request_identifiers_answer()
 	};
-	let mut purchases = load_purchases();
-	if purchases.insert(new_purchase) {
-		save_purchases(purchases);
+	let mut all_purchases = load_purchases();
+	if all_purchases.insert(new_purchase) {
+		save_purchases(all_purchases);
 		println!("\nSaved item into dataset.");
 	} else {
 		println!("\nThis exact item already exists in the dataset, skipping saving.");
-	}
-}
-fn delete_purchase() {
-	println!("In order to delete a purchase we must first find it.");
-	let purchases = load_purchases();
-	let mut updated_purchases = purchases.clone();
-	if let Some(purchase) = quick_find_purchase(purchases.into_iter().collect()) {
-		let confirmation_question =
-			format!("Are you sure you want to delete...\n{:?}\n...?", purchase);
-		if get_yes_no_answer(confirmation_question) {
-			updated_purchases.remove(&purchase);
-			save_purchases(updated_purchases);
-			println!("\nPurchase was removed from dataset.");
-		} else {
-			println!("\nPurchase was kept in dataset.");
-		}
-	} else {
-		println!("\nNo purchase with the provided specifications could be found.");
 	}
 }
 fn add_rule() {
@@ -119,14 +220,83 @@ fn add_rule() {
 		println!("\nThis exact rule already exists in the dataset, skipping saving.");
 	}
 }
+fn modify_purchase() {
+	const TITLE_STR: &str = "T";
+	const IDENTIFIER_STR: &str = "I";
+	println!("In order to modify a purchase we must first find it.");
+	let mut all_purchases = load_purchases();
+	if let Some(purchase) = quick_find_purchase(all_purchases.clone().iter()) {
+		'modify_loop: loop {
+			println!("What do you want to change about this purchase?");
+			println!(" - [{}] Modify title", TITLE_STR);
+			println!(" - [{}] Modify identifiers", IDENTIFIER_STR);
+			println!(" - [{}] Exit", EXIT_CHAR);
+			let modifying_fn = 'input_loop: loop {
+				let parsed_decision: Option<fn(Purchase) -> Purchase> =
+					match get_reply().to_uppercase() {
+						s if s.contains(TITLE_STR) => Some(modify_purchase_title),
+						s if s.contains(IDENTIFIER_STR) => Some(modify_purchase_identifiers),
+						s if s.contains(EXIT_CHAR) => return,
+						_ => None
+					};
+				if let Some(action_fn) = parsed_decision {
+					break 'input_loop action_fn;
+				}
+				print_unrecognized_command();
+			};
+			println!();
+			let new_purchase = modifying_fn(purchase.clone());
+			if get_yes_no_answer("Are you satisfied with the purchase?") {
+				break 'modify_loop;
+			}
+
+			let insert_successful = all_purchases.insert(new_purchase);
+			if !insert_successful
+				|| get_yes_no_answer(
+					"Data already contained this exact value. Do you still want to delete the old \
+					 value?"
+				) {
+				let remove_succesful = all_purchases.remove(purchase);
+				if !remove_succesful {
+					unreachable!("Could not remove purchase we just found?");
+				}
+			}
+		}
+	}
+}
+fn modify_purchase_title(mut purchase: Purchase) -> Purchase {
+	//
+	todo!()
+}
+fn modify_purchase_identifiers(mut purchase: Purchase) -> Purchase {
+	//
+	todo!()
+}
+fn delete_purchase() {
+	println!("In order to delete a purchase we must first find it.");
+	let mut all_purchases = load_purchases();
+	if let Some(purchase) = quick_find_purchase(all_purchases.clone().iter()) {
+		let confirmation_question =
+			format!("Are you sure you want to delete...\n{:?}\n...?", purchase);
+		if get_yes_no_answer(confirmation_question) {
+			all_purchases.remove(purchase);
+			save_purchases(all_purchases);
+			println!("\nPurchase was removed from dataset.");
+		} else {
+			println!("\nPurchase was kept in dataset.");
+		}
+	} else {
+		println!("\nNo purchase with the provided specifications could be found.");
+	}
+}
 fn delete_rule() {
 	println!("In order to delete a rule we must first find it.");
 	let rules = load_rules();
 	let mut updated_rules = rules.clone();
-	if let Some(rule) = quick_find_rule(rules.into_iter().collect()) {
+	if let Some(rule) = quick_find_rule(rules.iter()) {
 		let confirmation_question = format!("Are you sure you want to delete...\n{:?}\n...?", rule);
 		if get_yes_no_answer(confirmation_question) {
-			updated_rules.remove(&rule);
+			updated_rules.remove(rule);
 			save_rules(updated_rules);
 			println!("\nRule was removed from dataset.");
 		} else {
@@ -136,13 +306,61 @@ fn delete_rule() {
 		println!("\nNo rule with the provided specifications could be found.");
 	}
 }
-fn print_individual() {
+
+fn print_purchase_data_individual() {
+	let purchases = load_purchases();
+	let possible_purchase = quick_find_purchase(purchases.iter());
+	println!();
+	if let Some(purchase) = possible_purchase {
+		println!("Purchase:\n{}", purchase);
+	} else {
+		println!("No purchase with the provided specifications could be found.");
+	}
+}
+fn print_rule_data_individual() {
+	let rules = load_rules();
+	let possible_rule = quick_find_rule(rules.iter());
+	println!();
+	if let Some(rule) = possible_rule {
+		println!("Purchase:\n{}", rule);
+	} else {
+		println!("No rule with the provided specifications could be found.");
+	}
+}
+fn print_purchase_data_order() {
+	let order = get_order();
+	println!();
+	if order.purchases.0.is_empty() {
+		println!("No purchases in order to print.");
+	} else {
+		for (index, (purchase, amount)) in order.purchases.0.iter().enumerate() {
+			println!("Purchase no. {} (x{}):\n{}", index + 1, amount, purchase);
+			println!();
+		}
+	}
+}
+fn print_purchase_data_all() {
+	let all_purchases = load_purchases();
+	for (index, purchase) in all_purchases.iter().enumerate() {
+		println!("Purchase no. {}:\n{}", index + 1, purchase);
+		println!();
+	}
+}
+fn print_rule_data_all() {
+	let all_rules = load_rules();
+	for (index, rule) in all_rules.iter().enumerate() {
+		println!("Rule no. {}:\n{}", index + 1, rule);
+		println!();
+	}
+}
+
+fn print_processing_individual() {
 	let rules = load_rules();
 	if rules.is_empty() {
 		println!("There are currently no rules to trigger any processes.");
 	} else {
 		let purchases = load_purchases();
-		let possible_purchase = quick_find_purchase(purchases.into_iter().collect());
+		let possible_purchase = quick_find_purchase(purchases.iter());
 		println!();
 		if let Some(purchase) = possible_purchase {
 			let processing_steps = purchase.get_processing_steps(&rules);
@@ -153,7 +371,7 @@ fn print_individual() {
 					"The processing steps for this purchase are the following:\n - {}",
 					processing_steps
 						.iter()
-						.map(|i| i.0.as_ref())
+						.map(AsRef::as_ref)
 						.collect::<Vec<_>>()
 						.join("\n - ")
 				);
@@ -163,95 +381,164 @@ fn print_individual() {
 		}
 	}
 }
-fn print_all() {
+fn print_processing_order() {
+	let order = get_order();
+	println!(); // post-user-entry spacing
+	if order.purchases.0.is_empty() {
+		println!("No purchases in order to print.");
+	} else {
+		let rules = load_rules();
+		if rules.is_empty() {
+			println!("There are currently no rules to trigger any processes.");
+		} else {
+			let rules = &rules;
+			for (index, (purchase, amount)) in order.purchases.0.iter().enumerate() {
+				println!("Purchase no. {} (x{}):\n{}", index + 1, amount, purchase);
+				print_processing_steps(purchase, rules);
+				println!(); // extra spacing between each
+			}
+		}
+	}
+}
+
+fn get_order() -> Order {
+	let mut order = Order {
+		purchases: PurchaseCollection(BTreeMap::new())
+	};
+	let all_purchases = load_purchases();
+	'purchase_add_loop: loop {
+		println!(
+			"--- Purchase {} ---",
+			order.purchases.0.values().sum::<usize>()
+		);
+		let new_purchase = 'purchase_find_loop: loop {
+			if let Some(purchase) = quick_find_purchase(all_purchases.iter()) {
+				break 'purchase_find_loop purchase;
+			}
+			if !get_yes_no_answer("Failed to find valid purchase. Do you want to try again?") {
+				break 'purchase_add_loop;
+			}
+		};
+		order
+			.purchases
+			.0
+			.entry(new_purchase.clone())
+			.and_modify(|count| *count += 1)
+			.or_insert(1);
+		println!("Purchase added to order.");
+		if !get_yes_no_answer("Do you want to add another purchase to this order?") {
+			break 'purchase_add_loop;
+		}
+	}
+	order
+}
+fn print_processing_all() {
 	let all_purchases = load_purchases();
 	let rules = load_rules();
 	if rules.is_empty() {
 		println!("There are currently no rules to trigger any processes.");
 	} else {
+		let rules = &rules;
 		for (index, purchase) in all_purchases.iter().enumerate() {
-			println!("PURCHASE {}:\n{:?}", index, purchase);
-			let processing_steps = purchase.get_processing_steps(&rules);
-			if processing_steps.is_empty() {
-				println!("This purchase does trigger any processing rules.");
-			} else {
-				println!(
-					"The processing steps for this purchase are the following:\n - {}",
-					processing_steps
-						.iter()
-						.map(|i| i.0.as_ref())
-						.collect::<Vec<_>>()
-						.join("\n - ")
-				);
-			}
+			println!("Purchase no. {}:\n{}", index + 1, purchase);
+			print_processing_steps(purchase, rules);
 			println!(); // extra spacing
 		}
 	}
 }
 
+fn print_processing_steps(purchase: &Purchase, rules: &BTreeSet<Rule>) {
+	let processing_steps = purchase.get_processing_steps(rules);
+	if processing_steps.is_empty() {
+		println!("This purchase does trigger any processing rules.");
+	} else {
+		println!(
+			"The processing steps for this purchase are the following:\n - {}",
+			processing_steps
+				.iter()
+				.map(AsRef::as_ref)
+				.collect::<Vec<_>>()
+				.join("\n - ")
+		);
+	}
+}
+
 fn request_identifiers_answer() -> IdentifierCollection {
 	println!("Please provide some tags (separated by semicolon).");
-	let mut identifiers = IdentifierCollection::default();
-	'modify_loop: loop {
+	let mut all_identifiers = IdentifierCollection::default();
+	'add_loop: loop {
 		// always start by adding
-		let reply = get_reply();
-		let identifiers_to_add = reply.split(';').map(str::trim).collect::<Vec<_>>();
-		for identifier in identifiers_to_add {
-			if !identifiers.0.insert(identifier.into()) {
-				println!(
-					"'{}' is already an identifier for this entry, skipping addition...",
-					identifier
-				);
-			}
-		}
+		let add_reply = get_reply();
+		add_str_as_identifier(add_reply, &mut all_identifiers);
 		'review_loop: loop {
 			println!(
-				"Identifiers: ['{}']",
-				identifiers
+				"Identifiers: [{}]",
+				all_identifiers
 					.0
 					.iter()
 					.map(|i| i.0.as_ref())
 					.collect::<Vec<_>>()
-					.join("', '")
+					.join(", ")
 			);
 			if get_yes_no_answer("Are you satisfied with the identifiers?") {
-				break 'modify_loop; // finish and return identifiers
+				break 'add_loop; // finish and return identifiers
 			}
-			println!("Do you want to add [A] or delete [D] modifiers? ('C' to cancel)");
+			println!("Do you want to add [A] or delete [D] modifiers? ([C] to cancel)");
 			'operation_loop: loop {
-				let reply = get_reply();
-				match reply.to_lowercase() {
+				let operation_reply = get_reply();
+				match operation_reply.to_lowercase() {
 					s if s.contains('a') => {
 						println!("What do you want to add? (Still separated by semicolon)");
-						continue 'modify_loop; // reuse start
+						let add_reply = get_reply();
+						add_str_as_identifier(add_reply, &mut all_identifiers);
+						continue 'review_loop;
 					},
 					s if s.contains('d') => {
 						println!("What do you want to delete? (Still separated by semicolon)");
-						let reply = get_reply();
-						let identifiers_for_removal = reply
-							.split(';')
-							.map(|i_str| i_str.trim().into())
-							.collect::<Vec<Identifier>>();
-						for identifier in identifiers_for_removal {
-							if !identifiers.0.remove(&identifier) {
-								println!(
-									"'{}' is not an identifier for this entry, skipping removal...",
-									identifier.0
-								);
-							}
-						}
+						let delete_reply = get_reply();
+						remove_str_as_identifier(delete_reply, &mut all_identifiers);
 						continue 'review_loop; // modify complete
 					},
 					_ => {
 						println!("You must use one of the key letters above to signal intent.");
-						continue 'operation_loop; // try input again
+						continue 'operation_loop;
 					}
 				}
 			}
 		}
 	}
-	identifiers
+	all_identifiers
 }
+
+fn add_str_as_identifier(s: impl AsRef<str>, all_identifiers: &mut IdentifierCollection) {
+	let identifiers_to_add = s.as_ref().split(';').map(str::trim).collect::<Vec<_>>();
+	for identifier in identifiers_to_add {
+		if identifier.is_empty() {
+			println!("'' is an empty identifier and is skipped.");
+		} else if !all_identifiers.0.insert(identifier.into()) {
+			println!(
+				"'{}' is already an identifier for this entry, skipping addition...",
+				identifier
+			);
+		}
+	}
+}
+fn remove_str_as_identifier(s: impl AsRef<str>, all_identifiers: &mut IdentifierCollection) {
+	let identifiers_for_removal = s
+		.as_ref()
+		.split(';')
+		.map(|i_str| i_str.trim().into())
+		.collect::<Vec<Identifier>>();
+	for identifier in identifiers_for_removal {
+		if !all_identifiers.0.remove(&identifier) {
+			println!(
+				"'{}' is not an identifier for this entry, skipping removal...",
+				identifier.0
+			);
+		}
+	}
+}
+
 fn request_rule_trigger_answer() -> RuleTrigger {
 	println!("Select the type of trigger for this rule:");
 	println!(" - [Never] trigger");
@@ -346,10 +633,9 @@ fn request_rule_trigger_answer() -> RuleTrigger {
 	}
 }
 
-fn quick_find_purchase(data: Vec<Purchase>) -> Option<Purchase> {
+fn quick_find_purchase<'a>(data: impl Iterator<Item = &'a Purchase>) -> Option<&'a Purchase> {
 	let title = prompt_question("What is the title of the purchase?");
-	let mut found_matches: Vec<Purchase> = data
-		.into_iter()
+	let mut found_matches: Vec<&Purchase> = data
 		.filter(|purchase| purchase.title_matches(&title))
 		.collect();
 	if found_matches.is_empty() {
@@ -363,7 +649,7 @@ fn quick_find_purchase(data: Vec<Purchase>) -> Option<Purchase> {
 		'tag_narrow_loop: loop {
 			let unique_tags: BTreeSet<&Identifier> = found_matches
 				.iter()
-				.flat_map(data::types::Purchase::get_all_ídentifiers) // iter of vecs to vec
+				.flat_map(|purchase| purchase.get_all_ídentifiers()) // iter of vecs to vec
 				.collect(); // unique
 			println!(
 				"[{}] (unordered)",
@@ -397,10 +683,9 @@ fn quick_find_purchase(data: Vec<Purchase>) -> Option<Purchase> {
 		Some(found_matches.remove(0))
 	}
 }
-fn quick_find_rule(data: Vec<Rule>) -> Option<Rule> {
+fn quick_find_rule<'a>(data: impl Iterator<Item = &'a Rule>) -> Option<&'a Rule> {
 	let title = prompt_question("What is the title of the rule?");
-	let mut found_matches: Vec<Rule> = data
-		.into_iter()
+	let mut found_matches: Vec<&Rule> = data
 		.filter(|purchase| purchase.title.as_ref() == title)
 		.collect();
 	if found_matches.is_empty() {

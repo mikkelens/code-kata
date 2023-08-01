@@ -1,4 +1,8 @@
-use std::{collections::BTreeSet, sync::Arc};
+use std::{
+	collections::{BTreeMap, BTreeSet},
+	fmt::Display,
+	sync::Arc
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -6,6 +10,9 @@ use serde::{Deserialize, Serialize};
 pub struct Identifier(pub Arc<str>);
 impl<T: AsRef<str>> From<T> for Identifier {
 	fn from(value: T) -> Self { Identifier(Arc::from(value.as_ref())) }
+}
+impl Display for Identifier {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "'{}'", self.0) }
 }
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone, Default)]
 pub struct IdentifierCollection(pub BTreeSet<Identifier>);
@@ -19,11 +26,11 @@ pub struct Purchase {
 	pub identifiers: IdentifierCollection
 }
 impl Purchase {
-	pub fn get_processing_steps(&self, rules: &BTreeSet<Rule>) -> Vec<Identifier> {
+	pub fn get_processing_steps(&self, rules: &BTreeSet<Rule>) -> Vec<Arc<str>> {
 		rules
 			.iter()
 			.filter(|rule| rule.trigger.triggered_by(self))
-			.map(|triggered_rule| Identifier(triggered_rule.process_action.clone()))
+			.map(|triggered_rule| triggered_rule.process_action.clone())
 			.collect()
 	}
 
@@ -36,6 +43,28 @@ impl Purchase {
 	}
 
 	pub fn get_all_ídentifiers(&self) -> Vec<&Identifier> { self.identifiers.0.iter().collect() }
+}
+impl Display for Purchase {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(
+			f,
+			"title: '{}',\nidentifiers: [{}]",
+			self.title.as_ref(),
+			self.identifiers
+				.0
+				.iter()
+				.map(|identifier| format!("{}", identifier))
+				.collect::<Vec<_>>()
+				.join(", ")
+		)
+	}
+}
+
+#[derive(Debug)]
+pub struct PurchaseCollection(pub BTreeMap<Purchase, usize>);
+#[derive(Debug)]
+pub struct Order {
+	pub purchases: PurchaseCollection
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
@@ -115,6 +144,17 @@ pub struct Rule {
 	pub title:          Arc<str>,
 	pub process_action: Arc<str>, // process
 	pub trigger:        RuleTrigger
+}
+impl Display for Rule {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(
+			f,
+			"title: '{}',\nprocess_action:{}\nidentifiers: [{:?}]",
+			self.title.as_ref(),
+			self.process_action.as_ref(),
+			self.trigger
+		)
+	}
 }
 
 #[cfg(test)]
