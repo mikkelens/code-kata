@@ -1,16 +1,14 @@
-use std::{
-	collections::{BTreeMap, BTreeSet},
-	sync::Arc
-};
+use std::{collections::BTreeSet, sync::Arc};
 
 mod data;
+mod printing;
 
 #[allow(clippy::wildcard_imports)]
 use data::{io::*, types::*};
+#[allow(clippy::wildcard_imports)]
+use printing::*;
 
 const EXIT_CHAR: char = 'E';
-const UNRECOGNIZED_COMMAND_STR: &str =
-	"You typed an unrecognized command. Try using the letters in '[]' above.";
 fn main() {
 	'program_loop: loop {
 		const PURCHASE_DATA_STR: &str = "P";
@@ -41,9 +39,6 @@ fn main() {
 		println!(); // space after
 	}
 }
-fn print_unrecognized_command() {
-	println!("{}", UNRECOGNIZED_COMMAND_STR);
-}
 
 const ALL_STR: &str = "A";
 const INDIVIDUAL_STR: &str = "I";
@@ -63,9 +58,9 @@ fn purchase_modify_decision() {
 	println!(" - [{}] Exit", EXIT_CHAR);
 	let action_fn = 'input_loop: loop {
 		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
-			s if s.contains(ADD_STR) => Some(add_purchase),
-			s if s.contains(MODIFY_STR) => Some(modify_purchase),
-			s if s.contains(DELETE_STR) => Some(delete_purchase),
+			s if s.contains(ADD_STR) => Some(add_a_purchase),
+			s if s.contains(MODIFY_STR) => Some(modify_a_purchase),
+			s if s.contains(DELETE_STR) => Some(delete_a_purchase),
 			s if s.contains(PRINT_STR) => Some(print_purchase_data),
 			s if s.contains(EXIT_CHAR) => return,
 			_ => None
@@ -87,9 +82,9 @@ fn rule_modify_decision() {
 	println!(" - [{}] Exit", EXIT_CHAR);
 	let action_fn = 'input_loop: loop {
 		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
-			s if s.contains(ADD_STR) => Some(add_rule),
-			s if s.contains(MODIFY_STR) => unimplemented!(),
-			s if s.contains(DELETE_STR) => Some(delete_rule),
+			s if s.contains(ADD_STR) => Some(add_a_rule),
+			s if s.contains(MODIFY_STR) => Some(modify_a_rule),
+			s if s.contains(DELETE_STR) => Some(delete_a_rule),
 			s if s.contains(PRINT_STR) => Some(print_rule_data),
 			s if s.contains(EXIT_CHAR) => return,
 			_ => None
@@ -153,7 +148,7 @@ fn query_database() {
 
 	let action_fn = 'input_loop: loop {
 		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
-			s if s.contains(PROCESSING_STR) => Some(print_processing_information),
+			s if s.contains(PROCESSING_STR) => Some(print_decision),
 			s if s.contains(EXIT_CHAR) => return,
 			_ => None
 		};
@@ -166,7 +161,7 @@ fn query_database() {
 	action_fn();
 	println!();
 }
-fn print_processing_information() {
+fn print_decision() {
 	println!("How much processing information do you want to print out?");
 	println!(" - [{}] All purchases", ALL_STR);
 	println!(" - [{}] Order of purchases", ORDER_STR);
@@ -190,10 +185,10 @@ fn print_processing_information() {
 	action_fn();
 }
 
-fn add_purchase() {
+fn add_a_purchase() {
 	let new_purchase = Purchase {
 		title:       Arc::from(prompt_question("Provide a title to the purchase.")),
-		identifiers: request_identifiers_answer()
+		identifiers: IdentifierCollection::prompt_creation()
 	};
 	let mut all_purchases = load_purchases();
 	if all_purchases.insert(new_purchase) {
@@ -203,14 +198,8 @@ fn add_purchase() {
 		println!("\nThis exact item already exists in the dataset, skipping saving.");
 	}
 }
-fn add_rule() {
-	let rule = Rule {
-		title:          Arc::from(prompt_question("What should the title of this rule be?")),
-		process_action: Arc::from(prompt_question(
-			"What should happen when this rule is triggered?"
-		)),
-		trigger:        request_rule_trigger_answer()
-	};
+fn add_a_rule() {
+	let rule = Rule::prompt_creation();
 	let mut rules = load_rules();
 
 	if rules.insert(rule) {
@@ -220,12 +209,13 @@ fn add_rule() {
 		println!("\nThis exact rule already exists in the dataset, skipping saving.");
 	}
 }
-fn modify_purchase() {
+fn modify_a_purchase() {
 	const TITLE_STR: &str = "T";
 	const IDENTIFIER_STR: &str = "I";
-	println!("In order to modify a purchase we must first find it.");
 	let mut all_purchases = load_purchases();
+	println!("In order to modify a purchase we must first find it.");
 	if let Some(purchase) = quick_find_purchase(all_purchases.clone().iter()) {
+		let mut purchase_modified = purchase.clone();
 		'modify_loop: loop {
 			println!("What do you want to change about this purchase?");
 			println!(" - [{}] Modify title", TITLE_STR);
@@ -245,34 +235,95 @@ fn modify_purchase() {
 				print_unrecognized_command();
 			};
 			println!();
-			let new_purchase = modifying_fn(purchase.clone());
-			if get_yes_no_answer("Are you satisfied with the purchase?") {
+			purchase_modified = modifying_fn(purchase_modified);
+			if get_yes_no_answer("Are you satisfied with the changes made to the purchase?") {
 				break 'modify_loop;
 			}
-
-			let insert_successful = all_purchases.insert(new_purchase);
-			if !insert_successful
-				|| get_yes_no_answer(
-					"Data already contained this exact value. Do you still want to delete the old \
-					 value?"
-				) {
-				let remove_succesful = all_purchases.remove(purchase);
-				if !remove_succesful {
-					unreachable!("Could not remove purchase we just found?");
-				}
+		}
+		let insert_successful = all_purchases.insert(purchase_modified);
+		if insert_successful
+			|| get_yes_no_answer(
+				"Data already contained this exact value. Do you still want to delete the old \
+				 value?"
+			) {
+			let remove_succesful = all_purchases.remove(purchase);
+			if !remove_succesful {
+				unreachable!("Could not remove purchase we just found?");
 			}
 		}
+		save_purchases(all_purchases);
 	}
 }
 fn modify_purchase_title(mut purchase: Purchase) -> Purchase {
-	//
-	todo!()
+	purchase.title = Arc::from(prompt_question("What would you like the new title to be?"));
+	purchase
 }
 fn modify_purchase_identifiers(mut purchase: Purchase) -> Purchase {
-	//
-	todo!()
+	modify_identifiercollection_directly(&mut purchase.identifiers);
+	purchase
 }
-fn delete_purchase() {
+fn modify_a_rule() {
+	const TITLE_STR: &str = "T";
+	const PROCESS_ACTION_STR: &str = "P";
+	const RULE_TRIGGER_STR: &str = "R";
+	let mut all_rules = load_rules();
+	println!("In order to modify a rule we must first find it.");
+	if let Some(rule) = quick_find_rule(all_rules.clone().iter()) {
+		let mut rule_modified = rule.clone();
+		'modify_loop: loop {
+			println!("What do you want to change about this rule?");
+			println!(" - [{}] Modify title", TITLE_STR);
+			println!(" - [{}] Modify process action", PROCESS_ACTION_STR);
+			println!(" - [{}] Modify rule trigger", RULE_TRIGGER_STR);
+			println!(" - [{}] Exit", EXIT_CHAR);
+			let modifying_fn = 'input_loop: loop {
+				let parsed_decision: Option<fn(Rule) -> Rule> = match get_reply().to_uppercase() {
+					s if s.contains(TITLE_STR) => Some(modify_rule_title),
+					s if s.contains(PROCESS_ACTION_STR) => Some(modify_rule_process_action),
+					s if s.contains(RULE_TRIGGER_STR) => Some(modify_rule_trigger),
+					s if s.contains(EXIT_CHAR) => return,
+					_ => None
+				};
+				if let Some(action_fn) = parsed_decision {
+					break 'input_loop action_fn;
+				}
+				print_unrecognized_command();
+			};
+			println!();
+			rule_modified = modifying_fn(rule_modified);
+			if get_yes_no_answer("Are you satisfied with the changes made to the rule?") {
+				break 'modify_loop;
+			}
+		}
+		let insert_successful = all_rules.insert(rule_modified);
+		if insert_successful
+			|| get_yes_no_answer(
+				"Data already contained this exact value. Do you still want to delete the old \
+				 value?"
+			) {
+			let remove_succesful = all_rules.remove(rule);
+			if !remove_succesful {
+				unreachable!("Could not remove rule we just found?");
+			}
+		}
+		save_rules(all_rules);
+	}
+}
+fn modify_rule_title(mut rule: Rule) -> Rule {
+	rule.title = Arc::from(prompt_question("What would you like the new title to be?"));
+	rule
+}
+fn modify_rule_process_action(mut rule: Rule) -> Rule {
+	rule.title = Arc::from(prompt_question(
+		"What would you like the new process action to be?"
+	));
+	rule
+}
+fn modify_rule_trigger(mut rule: Rule) -> Rule {
+	rule.trigger = RuleTrigger::prompt_creation();
+	rule
+}
+fn delete_a_purchase() {
 	println!("In order to delete a purchase we must first find it.");
 	let mut all_purchases = load_purchases();
 	if let Some(purchase) = quick_find_purchase(all_purchases.clone().iter()) {
@@ -289,7 +340,7 @@ fn delete_purchase() {
 		println!("\nNo purchase with the provided specifications could be found.");
 	}
 }
-fn delete_rule() {
+fn delete_a_rule() {
 	println!("In order to delete a rule we must first find it.");
 	let rules = load_rules();
 	let mut updated_rules = rules.clone();
@@ -307,210 +358,37 @@ fn delete_rule() {
 	}
 }
 
-fn print_purchase_data_individual() {
-	let purchases = load_purchases();
-	let possible_purchase = quick_find_purchase(purchases.iter());
-	println!();
-	if let Some(purchase) = possible_purchase {
-		println!("Purchase:\n{}", purchase);
-	} else {
-		println!("No purchase with the provided specifications could be found.");
-	}
-}
-fn print_rule_data_individual() {
-	let rules = load_rules();
-	let possible_rule = quick_find_rule(rules.iter());
-	println!();
-	if let Some(rule) = possible_rule {
-		println!("Purchase:\n{}", rule);
-	} else {
-		println!("No rule with the provided specifications could be found.");
-	}
-}
-fn print_purchase_data_order() {
-	let order = get_order();
-	println!();
-	if order.purchases.0.is_empty() {
-		println!("No purchases in order to print.");
-	} else {
-		for (index, (purchase, amount)) in order.purchases.0.iter().enumerate() {
-			println!("Purchase no. {} (x{}):\n{}", index + 1, amount, purchase);
-			println!();
-		}
-	}
-}
-fn print_purchase_data_all() {
-	let all_purchases = load_purchases();
-	for (index, purchase) in all_purchases.iter().enumerate() {
-		println!("Purchase no. {}:\n{}", index + 1, purchase);
-		println!();
-	}
-}
-fn print_rule_data_all() {
-	let all_rules = load_rules();
-	for (index, rule) in all_rules.iter().enumerate() {
-		println!("Rule no. {}:\n{}", index + 1, rule);
-		println!();
-	}
-}
+const CANCEL_STR: &str = "C";
 
-fn print_processing_individual() {
-	let rules = load_rules();
-	if rules.is_empty() {
-		println!("There are currently no rules to trigger any processes.");
-	} else {
-		let purchases = load_purchases();
-		let possible_purchase = quick_find_purchase(purchases.iter());
-		println!();
-		if let Some(purchase) = possible_purchase {
-			let processing_steps = purchase.get_processing_steps(&rules);
-			if processing_steps.is_empty() {
-				println!("This purchase does trigger any processing rules.");
-			} else {
-				println!(
-					"The processing steps for this purchase are the following:\n - {}",
-					processing_steps
-						.iter()
-						.map(AsRef::as_ref)
-						.collect::<Vec<_>>()
-						.join("\n - ")
-				);
-			}
-		} else {
-			println!("No item with the provided specifications could be found.");
-		}
-	}
-}
-fn print_processing_order() {
-	let order = get_order();
-	println!(); // post-user-entry spacing
-	if order.purchases.0.is_empty() {
-		println!("No purchases in order to print.");
-	} else {
-		let rules = load_rules();
-		if rules.is_empty() {
-			println!("There are currently no rules to trigger any processes.");
-		} else {
-			let rules = &rules;
-			for (index, (purchase, amount)) in order.purchases.0.iter().enumerate() {
-				println!("Purchase no. {} (x{}):\n{}", index + 1, amount, purchase);
-				print_processing_steps(purchase, rules);
-				println!(); // extra spacing between each
-			}
-		}
-	}
-}
-
-fn get_order() -> Order {
-	let mut order = Order {
-		purchases: PurchaseCollection(BTreeMap::new())
-	};
-	let all_purchases = load_purchases();
-	'purchase_add_loop: loop {
-		println!(
-			"--- Purchase {} ---",
-			order.purchases.0.values().sum::<usize>()
-		);
-		let new_purchase = 'purchase_find_loop: loop {
-			if let Some(purchase) = quick_find_purchase(all_purchases.iter()) {
-				break 'purchase_find_loop purchase;
-			}
-			if !get_yes_no_answer("Failed to find valid purchase. Do you want to try again?") {
-				break 'purchase_add_loop;
+fn modify_identifiercollection_directly(all_identifiers: &mut IdentifierCollection) {
+	println!(
+		"Do you want to add [{}] or delete [{}] modifiers? ([{}] to cancel)",
+		ADD_STR, DELETE_STR, CANCEL_STR
+	);
+	let modifying_fn: fn(&mut IdentifierCollection, String) = 'input_loop: loop {
+		break 'input_loop match get_reply().to_uppercase() {
+			s if s.contains(ADD_STR) => {
+				println!("What do you want to add? (Still separated by semicolon)");
+				add_from_str
+			},
+			s if s.contains(DELETE_STR) => {
+				println!("What do you want to delete? (Still separated by semicolon)");
+				remove_from_str
+			},
+			s if s.contains(CANCEL_STR) => {
+				return;
+			},
+			_ => {
+				println!("You must use one of the key letters above to signal intent.");
+				continue 'input_loop;
 			}
 		};
-		order
-			.purchases
-			.0
-			.entry(new_purchase.clone())
-			.and_modify(|count| *count += 1)
-			.or_insert(1);
-		println!("Purchase added to order.");
-		if !get_yes_no_answer("Do you want to add another purchase to this order?") {
-			break 'purchase_add_loop;
-		}
-	}
-	order
-}
-fn print_processing_all() {
-	let all_purchases = load_purchases();
-	let rules = load_rules();
-	if rules.is_empty() {
-		println!("There are currently no rules to trigger any processes.");
-	} else {
-		let rules = &rules;
-		for (index, purchase) in all_purchases.iter().enumerate() {
-			println!("Purchase no. {}:\n{}", index + 1, purchase);
-			print_processing_steps(purchase, rules);
-			println!(); // extra spacing
-		}
-	}
+	};
+	let identifier_reply = get_reply();
+	modifying_fn(all_identifiers, identifier_reply);
 }
 
-fn print_processing_steps(purchase: &Purchase, rules: &BTreeSet<Rule>) {
-	let processing_steps = purchase.get_processing_steps(rules);
-	if processing_steps.is_empty() {
-		println!("This purchase does trigger any processing rules.");
-	} else {
-		println!(
-			"The processing steps for this purchase are the following:\n - {}",
-			processing_steps
-				.iter()
-				.map(AsRef::as_ref)
-				.collect::<Vec<_>>()
-				.join("\n - ")
-		);
-	}
-}
-
-fn request_identifiers_answer() -> IdentifierCollection {
-	println!("Please provide some tags (separated by semicolon).");
-	let mut all_identifiers = IdentifierCollection::default();
-	'add_loop: loop {
-		// always start by adding
-		let add_reply = get_reply();
-		add_str_as_identifier(add_reply, &mut all_identifiers);
-		'review_loop: loop {
-			println!(
-				"Identifiers: [{}]",
-				all_identifiers
-					.0
-					.iter()
-					.map(|i| i.0.as_ref())
-					.collect::<Vec<_>>()
-					.join(", ")
-			);
-			if get_yes_no_answer("Are you satisfied with the identifiers?") {
-				break 'add_loop; // finish and return identifiers
-			}
-			println!("Do you want to add [A] or delete [D] modifiers? ([C] to cancel)");
-			'operation_loop: loop {
-				let operation_reply = get_reply();
-				match operation_reply.to_lowercase() {
-					s if s.contains('a') => {
-						println!("What do you want to add? (Still separated by semicolon)");
-						let add_reply = get_reply();
-						add_str_as_identifier(add_reply, &mut all_identifiers);
-						continue 'review_loop;
-					},
-					s if s.contains('d') => {
-						println!("What do you want to delete? (Still separated by semicolon)");
-						let delete_reply = get_reply();
-						remove_str_as_identifier(delete_reply, &mut all_identifiers);
-						continue 'review_loop; // modify complete
-					},
-					_ => {
-						println!("You must use one of the key letters above to signal intent.");
-						continue 'operation_loop;
-					}
-				}
-			}
-		}
-	}
-	all_identifiers
-}
-
-fn add_str_as_identifier(s: impl AsRef<str>, all_identifiers: &mut IdentifierCollection) {
+fn add_from_str(all_identifiers: &mut IdentifierCollection, s: impl AsRef<str>) {
 	let identifiers_to_add = s.as_ref().split(';').map(str::trim).collect::<Vec<_>>();
 	for identifier in identifiers_to_add {
 		if identifier.is_empty() {
@@ -523,7 +401,7 @@ fn add_str_as_identifier(s: impl AsRef<str>, all_identifiers: &mut IdentifierCol
 		}
 	}
 }
-fn remove_str_as_identifier(s: impl AsRef<str>, all_identifiers: &mut IdentifierCollection) {
+fn remove_from_str(all_identifiers: &mut IdentifierCollection, s: impl AsRef<str>) {
 	let identifiers_for_removal = s
 		.as_ref()
 		.split(';')
@@ -536,100 +414,6 @@ fn remove_str_as_identifier(s: impl AsRef<str>, all_identifiers: &mut Identifier
 				identifier.0
 			);
 		}
-	}
-}
-
-fn request_rule_trigger_answer() -> RuleTrigger {
-	println!("Select the type of trigger for this rule:");
-	println!(" - [Never] trigger");
-	println!(" - [Always] trigger");
-	println!(" - Trigger on [Title] match");
-	println!(" - Trigger on [Identifier] match");
-	println!(" - Trigger on a [Combination] of other rules");
-	println!(" - Trigger when another is [Not] triggered");
-	'trigger_parse: loop {
-		let reply = get_reply();
-		break 'trigger_parse match reply.to_lowercase() {
-			s if s.contains("never") => RuleTrigger::Never,
-			s if s.contains("always") => RuleTrigger::Always,
-			s if s.contains("title") => RuleTrigger::Title {
-				name: Arc::from(prompt_question(
-					"What should the title of the purchase be for this rule to trigger?"
-				))
-			},
-			s if s.contains("identifier") => {
-				let identifiers = request_identifiers_answer();
-				let condition = match identifiers.0.len() {
-					1 => {
-						println!("Condition of single identifier is set to 'Any' by default.");
-						IdentifierCondition::Any
-					},
-					_ => 'condition_parse: loop {
-						println!("Select the condition to trigger this Identifier rule:");
-						println!(" - [None] of the identifiers can be present");
-						println!(" - [Any] of the identifiers have to be present");
-						println!(" - [All] of the identifiers have to be present");
-						let reply = get_reply();
-						break 'condition_parse match reply.to_lowercase() {
-							s if s.contains("none") => IdentifierCondition::None,
-							s if s.contains("any") => IdentifierCondition::Any,
-							s if s.contains("all") => IdentifierCondition::All,
-							s => {
-								println!("'{}' was not recognized as one of the options.", s);
-								println!("Try again.");
-								continue 'condition_parse;
-							}
-						};
-					}
-				};
-				RuleTrigger::Identifier {
-					identifiers,
-					condition
-				}
-			},
-			s if s.contains("combination") => {
-				println!("In order to make a combination of rule triggers,");
-				println!("you must provide two different triggers.");
-				println!("Are you sure you want to proceed?");
-				RuleTrigger::Combination {
-					a:         {
-						println!("--- RULE TRIGGER A ---");
-						Box::new(request_rule_trigger_answer())
-					},
-					b:         {
-						println!("--- RULE TRIGGER A ---");
-						Box::new(request_rule_trigger_answer())
-					},
-					condition: {
-						'condition_parse: loop {
-							println!("Select the combinational trigger of this rule:");
-							println!(" - [None] of the triggers need to be active");
-							println!(" - [ExactlyOne] of the triggers has to be active");
-							println!(" - [Either] one of the triggers has to be active");
-							println!(" - [Both] of the triggers have to be cative");
-							let reply = get_reply();
-							break 'condition_parse match reply.to_lowercase() {
-								s if s.contains("none") => CombinationCondition::None,
-								s if s.contains("exactly") => CombinationCondition::ExactlyOne,
-								s if s.contains("either") => CombinationCondition::Either,
-								s if s.contains("both") => CombinationCondition::Both,
-								s => {
-									println!("'{}' was not recognized as one of the options.", s);
-									println!("Try again.");
-									continue 'condition_parse;
-								}
-							};
-						}
-					}
-				}
-			},
-			s if s.contains("not") => todo!(),
-			s => {
-				println!("'{}' was not recognized as one of the options.", s);
-				println!("Try again.");
-				continue 'trigger_parse;
-			}
-		};
 	}
 }
 
@@ -665,7 +449,7 @@ fn quick_find_purchase<'a>(data: impl Iterator<Item = &'a Purchase>) -> Option<&
 				let tag_recognized = found_matches
 					.iter()
 					.any(|found_match| found_match.has_identifier(&replied_tag));
-				if tag_recognized {
+				if !tag_recognized {
 					println!("Tag was not found in the collection of matches.");
 					println!("Try again.");
 					continue 'tag_specify_loop;
@@ -673,14 +457,16 @@ fn quick_find_purchase<'a>(data: impl Iterator<Item = &'a Purchase>) -> Option<&
 				found_matches.retain(|found_match| found_match.has_identifier(&replied_tag));
 				break 'tag_specify_loop;
 			}
-			if found_matches.len() > 1 {
-				println!("Multiple purchases share provided tag(s) in the dataset.");
-				println!("Tags present for purchases with specified name and tags:");
-				continue 'tag_narrow_loop;
+
+			if found_matches.is_empty() {
+				break 'tag_narrow_loop None;
 			}
-			break 'tag_narrow_loop;
+			if found_matches.len() == 1 {
+				break 'tag_narrow_loop Some(found_matches.remove(0));
+			}
+			println!("Multiple purchases share provided tag(s) in the dataset.");
+			println!("Tags present for purchases with specified name and tags:");
 		}
-		Some(found_matches.remove(0))
 	}
 }
 fn quick_find_rule<'a>(data: impl Iterator<Item = &'a Rule>) -> Option<&'a Rule> {
@@ -715,14 +501,3 @@ fn quick_find_rule<'a>(data: impl Iterator<Item = &'a Rule>) -> Option<&'a Rule>
 		Some(selected_match)
 	}
 }
-
-const PURCHASE_DATA_PATH: &str =
-	r"C:\Users\mikke\Desktop\repos\rust\code-kata\business-rules\src\all_purchases.json";
-fn load_purchases() -> BTreeSet<Purchase> { load_set(PURCHASE_DATA_PATH) }
-fn save_purchases(purchases: BTreeSet<Purchase>) {
-	save_overwrite_path(purchases, PURCHASE_DATA_PATH);
-}
-const RULE_DATA_PATH: &str =
-	r"C:\Users\mikke\Desktop\repos\rust\code-kata\business-rules\src\all_rules.json";
-fn load_rules() -> BTreeSet<Rule> { load_set(RULE_DATA_PATH) }
-fn save_rules(rules: BTreeSet<Rule>) { save_overwrite_path(rules, RULE_DATA_PATH); }

@@ -1,5 +1,6 @@
 use std::{
 	any::type_name,
+	collections::BTreeSet,
 	fs,
 	fs::read_to_string,
 	io::{stdin, stdout, Write}
@@ -7,6 +8,8 @@ use std::{
 
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{from_str, to_string_pretty};
+
+use super::types::{Purchase, Rule};
 
 pub fn load_set<T: DeserializeOwned + Default>(path: &str) -> T {
 	'reading: loop {
@@ -74,3 +77,14 @@ pub fn read_line() -> String {
 	stdin().read_line(&mut buffer).expect("unable to read line");
 	buffer
 }
+
+const PURCHASE_DATA_PATH: &str =
+	r"C:\Users\mikke\Desktop\repos\rust\code-kata\business-rules\src\all_purchases.json";
+pub fn load_purchases() -> BTreeSet<Purchase> { load_set(PURCHASE_DATA_PATH) }
+pub fn save_purchases(purchases: BTreeSet<Purchase>) {
+	save_overwrite_path(purchases, PURCHASE_DATA_PATH);
+}
+const RULE_DATA_PATH: &str =
+	r"C:\Users\mikke\Desktop\repos\rust\code-kata\business-rules\src\all_rules.json";
+pub fn load_rules() -> BTreeSet<Rule> { load_set(RULE_DATA_PATH) }
+pub fn save_rules(rules: BTreeSet<Rule>) { save_overwrite_path(rules, RULE_DATA_PATH); }

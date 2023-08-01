@@ -1,5 +1,14 @@
 [
   {
+    "title": "Learning all about skiing also gives you snowgoggles for free",
+    "process_action": "A pair of snowgoggles are included in the package",
+    "trigger": {
+      "Title": {
+        "name": "Learn all about skiing"
+      }
+    }
+  },
+  {
     "title": "activate memberships",
     "process_action": "activate the membership that was paid for",
     "trigger": {
@@ -50,13 +59,12 @@
     }
   },
   {
-    "title": "do what I want",
-    "process_action": "give me the keyboard or muffin",
+    "title": "videos give you a sticker",
+    "process_action": "a sticker is added to the package",
     "trigger": {
       "Identifier": {
         "identifiers": [
-          "keyboard",
-          "muffin"
+          "video"
         ],
         "condition": "Any"
       }
