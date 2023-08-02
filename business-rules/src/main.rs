@@ -1,188 +1,165 @@
 use std::{collections::BTreeSet, sync::Arc};
 
 mod data;
+mod interaction;
 mod printing;
 
 #[allow(clippy::wildcard_imports)]
 use data::{io::*, types::*};
 #[allow(clippy::wildcard_imports)]
+use interaction::*;
+#[allow(clippy::wildcard_imports)]
 use printing::*;
 
-const EXIT_CHAR: char = 'E';
 fn main() {
 	'program_loop: loop {
-		const PURCHASE_DATA_STR: &str = "P";
-		const RULE_DATA_STR: &str = "R";
-		const QUERY_DATA_STR: &str = "Q";
-
-		println!("What do you want to do?");
-		println!(" - [{}] Modify purchase data", PURCHASE_DATA_STR);
-		println!(" - [{}] Modify rule data", RULE_DATA_STR);
-		println!(" - [{}] Query database", QUERY_DATA_STR);
-		println!(" - [{}] Exit", EXIT_CHAR);
-
-		let action_fn = 'input_loop: loop {
-			let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
-				s if s.contains(PURCHASE_DATA_STR) => Some(purchase_modify_decision),
-				s if s.contains(RULE_DATA_STR) => Some(rule_modify_decision),
-				s if s.contains(QUERY_DATA_STR) => Some(query_database),
-				s if s.contains(EXIT_CHAR) => break 'program_loop,
-				_ => None
-			};
-			if let Some(action_fn) = parsed_decision {
-				break 'input_loop action_fn;
-			}
-			print_unrecognized_command();
+		const QUESTION: Decision = Decision {
+			possible_actions: &[
+				(
+					("P", "Modify purchase data").into(),
+					purchase_modify_decision as fn()
+				)
+					.into(),
+				(
+					("R", "Modify rule data").into(),
+					rule_modify_decision as fn()
+				)
+					.into(),
+				(("Q", "Query database").into(), query_database as fn()).into()
+			],
+			cancel_choice: Answer::exit_answer(),
+			..Default::default()
 		};
-		println!(); // space before
-		action_fn();
-		println!(); // space after
+
+		if !QUESTION.ask_continue() {
+			break 'program_loop;
+		}
 	}
 }
 
-const ALL_STR: &str = "A";
-const INDIVIDUAL_STR: &str = "I";
-const ORDER_STR: &str = "O";
-
-const PRINT_STR: &str = "P";
-
-const ADD_STR: &str = "A";
-const MODIFY_STR: &str = "M";
-const DELETE_STR: &str = "D";
 fn purchase_modify_decision() {
-	println!("What do you want to modify in purchase data?");
-	println!(" - [{}] Add a new purchase entry", ADD_STR);
-	println!(" - [{}] Modify an existing purchase entry", MODIFY_STR);
-	println!(" - [{}] Delete an existing purchase entry", DELETE_STR);
-	println!(" - [{}] Print information about the data", PRINT_STR);
-	println!(" - [{}] Exit", EXIT_CHAR);
-	let action_fn = 'input_loop: loop {
-		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
-			s if s.contains(ADD_STR) => Some(add_a_purchase),
-			s if s.contains(MODIFY_STR) => Some(modify_a_purchase),
-			s if s.contains(DELETE_STR) => Some(delete_a_purchase),
-			s if s.contains(PRINT_STR) => Some(print_purchase_data),
-			s if s.contains(EXIT_CHAR) => return,
-			_ => None
-		};
-		if let Some(action_fn) = parsed_decision {
-			break 'input_loop action_fn;
-		}
-		print_unrecognized_command();
+	const QUESTION: Decision = Decision {
+		prompt: "What do you want to modify in purchase data?",
+		possible_actions: &[
+			(
+				("A", "Add a new purchase entry").into(),
+				add_a_purchase as fn()
+			)
+				.into(),
+			(
+				("M", "Modify an existing purchase entry").into(),
+				modify_a_purchase as fn()
+			)
+				.into(),
+			(
+				("D", "Delete an existing purchase entry").into(),
+				delete_a_purchase as fn()
+			)
+				.into(),
+			(
+				("P", "Print information about the data").into(),
+				print_purchase_data as fn()
+			)
+				.into()
+		],
+		..Default::default()
 	};
-	println!();
-	action_fn();
+
+	QUESTION.ask_continue();
 }
 fn rule_modify_decision() {
-	println!("What do you want to modify in rule data?");
-	println!(" - [{}] Add a new rule entry", ADD_STR);
-	println!(" - [{}] Modify an existing rule entry", MODIFY_STR);
-	println!(" - [{}] Delete an existing rule entry", DELETE_STR);
-	println!(" - [{}] Print information about the data", PRINT_STR);
-	println!(" - [{}] Exit", EXIT_CHAR);
-	let action_fn = 'input_loop: loop {
-		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
-			s if s.contains(ADD_STR) => Some(add_a_rule),
-			s if s.contains(MODIFY_STR) => Some(modify_a_rule),
-			s if s.contains(DELETE_STR) => Some(delete_a_rule),
-			s if s.contains(PRINT_STR) => Some(print_rule_data),
-			s if s.contains(EXIT_CHAR) => return,
-			_ => None
-		};
-		if let Some(action_fn) = parsed_decision {
-			break 'input_loop action_fn;
-		}
-		print_unrecognized_command();
+	const QUESTION: Decision = Decision {
+		prompt: "What do you want to modify in rule data?",
+		possible_actions: &[
+			(("A", "Add a new rule entry").into(), add_a_rule as fn()).into(),
+			(
+				("M", "Modify an existing rule entry").into(),
+				modify_a_rule as fn()
+			)
+				.into(),
+			(
+				("D", "Delete an existing rule entry").into(),
+				delete_a_rule as fn()
+			)
+				.into(),
+			(
+				("P", "Print information about the data").into(),
+				print_rule_data as fn()
+			)
+				.into()
+		],
+		..Default::default()
 	};
-	println!();
-	action_fn();
+	QUESTION.ask_continue();
 }
 
 fn print_purchase_data() {
-	println!("What purchase data do you want to print out?");
-	println!(" - [{}] All of it", ALL_STR);
-	println!(" - [{}] An order of it", ORDER_STR);
-	println!(" - [{}] One of them", INDIVIDUAL_STR);
-	println!(" - [{}] Exit", EXIT_CHAR);
-	let action_fn = 'input_loop: loop {
-		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
-			s if s.contains(ALL_STR) => Some(print_purchase_data_all),
-			s if s.contains(ORDER_STR) => Some(print_purchase_data_order),
-			s if s.contains(INDIVIDUAL_STR) => Some(print_purchase_data_individual),
-			s if s.contains(EXIT_CHAR) => return,
-			_ => None
-		};
-		if let Some(action_fn) = parsed_decision {
-			break 'input_loop action_fn;
-		}
-		print_unrecognized_command();
+	const QUESTION: Decision = Decision {
+		prompt: "What purchase data do you want to print out?",
+		possible_actions: &[
+			(("A", "All of them").into(), print_purchase_data_all as fn()).into(),
+			(
+				("O", "An order of them").into(),
+				print_purchase_data_order as fn()
+			)
+				.into(),
+			(
+				("I", "Individual purchase").into(),
+				print_purchase_data_individual as fn()
+			)
+				.into()
+		],
+		..Default::default()
 	};
-	println!();
-	action_fn();
+	QUESTION.ask_continue();
 }
 fn print_rule_data() {
-	println!("What rule data do you want to print out?");
-	println!(" - [{}] All of it", ALL_STR);
-	println!(" - [{}] One of them", INDIVIDUAL_STR);
-	println!(" - [{}] Exit", EXIT_CHAR);
-	let action_fn = 'input_loop: loop {
-		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
-			s if s.contains(ALL_STR) => Some(print_rule_data_all),
-			s if s.contains(INDIVIDUAL_STR) => Some(print_rule_data_individual),
-			s if s.contains(EXIT_CHAR) => return,
-			_ => None
-		};
-		if let Some(action_fn) = parsed_decision {
-			break 'input_loop action_fn;
-		}
-		print_unrecognized_command();
+	const QUESTION: Decision = Decision {
+		prompt: "What rule data do you want to print out?",
+		possible_actions: &[
+			(("A", "All of them").into(), print_rule_data_all as fn()).into(),
+			(
+				("I", "Individual rule").into(),
+				print_rule_data_individual as fn()
+			)
+				.into()
+		],
+		..Default::default()
 	};
-	println!();
-	action_fn();
+	QUESTION.ask_continue();
 }
 
 fn query_database() {
-	const PROCESSING_STR: &str = "P";
-	println!("What do you want to use the database for?");
-	println!(" - [{}] Print processing information", PROCESSING_STR);
-
-	let action_fn = 'input_loop: loop {
-		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
-			s if s.contains(PROCESSING_STR) => Some(print_decision),
-			s if s.contains(EXIT_CHAR) => return,
-			_ => None
-		};
-		if let Some(action_fn) = parsed_decision {
-			break 'input_loop action_fn;
-		}
-		print_unrecognized_command();
+	const QUESTION: Decision = Decision {
+		prompt: "What do you want to use the database for?",
+		possible_actions: &[(
+			("P", "Print processing information").into(),
+			print_processing_decision as fn()
+		)
+			.into()],
+		..Default::default()
 	};
-	println!();
-	action_fn();
-	println!();
+	QUESTION.ask_continue();
 }
-fn print_decision() {
-	println!("How much processing information do you want to print out?");
-	println!(" - [{}] All purchases", ALL_STR);
-	println!(" - [{}] Order of purchases", ORDER_STR);
-	println!(" - [{}] Individual purchase", INDIVIDUAL_STR);
-	println!(" - [{}] Exit", EXIT_CHAR);
-
-	let action_fn = 'input_loop: loop {
-		let parsed_decision: Option<fn()> = match get_reply().to_uppercase() {
-			s if s.contains(ALL_STR) => Some(print_processing_all),
-			s if s.contains(ORDER_STR) => Some(print_processing_order),
-			s if s.contains(INDIVIDUAL_STR) => Some(print_processing_individual),
-			s if s.contains(EXIT_CHAR) => return,
-			_ => None
-		};
-		if let Some(action_fn) = parsed_decision {
-			break 'input_loop action_fn;
-		}
-		print_unrecognized_command();
+fn print_processing_decision() {
+	const QUESTION: Decision = Decision {
+		prompt: "How much processing information do you want to print out?",
+		possible_actions: &[
+			(("A", "All purchases").into(), print_processing_all as fn()).into(),
+			(
+				("O", "Order of purchases").into(),
+				print_processing_order as fn()
+			)
+				.into(),
+			(
+				("i", "Individual purchase").into(),
+				print_processing_order as fn()
+			)
+				.into()
+		],
+		..Default::default()
 	};
-	println!();
-	action_fn();
+	QUESTION.ask_continue();
 }
 
 fn add_a_purchase() {
@@ -216,6 +193,8 @@ fn modify_a_purchase() {
 	println!("In order to modify a purchase we must first find it.");
 	if let Some(purchase) = quick_find_purchase(all_purchases.clone().iter()) {
 		let mut purchase_modified = purchase.clone();
+
+		
 		'modify_loop: loop {
 			println!("What do you want to change about this purchase?");
 			println!(" - [{}] Modify title", TITLE_STR);
