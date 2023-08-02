@@ -1,14 +1,14 @@
 #[allow(clippy::wildcard_imports)]
 use crate::data::io::*;
 
-pub struct Decision {
+pub struct Decision<F: 'static> {
 	pub prompt:           &'static str,
-	pub possible_actions: &'static [Action],
-	pub cancel_choice:    Answer
+	pub possible_choices: Vec<Choice<F>>,
+	pub cancel_answer:    Answer
 }
-pub struct Action {
-	pub answer:    Answer,
-	pub action_fn: fn()
+pub struct Choice<F> {
+	pub answer: Answer,
+	pub value:  F
 }
 pub struct Answer {
 	pub key:         &'static str,
@@ -36,71 +36,48 @@ impl From<(&'static str, &'static str)> for Answer {
 	}
 }
 
-impl From<(Answer, fn())> for Action {
-	fn from((answer, action_fn): (Answer, fn())) -> Self { Action { answer, action_fn } }
+impl<T> From<(Answer, T)> for Choice<T> {
+	fn from((answer, action_fn): (Answer, T)) -> Self {
+		Choice {
+			answer,
+			value: action_fn
+		}
+	}
 }
 
-impl Decision {
-	pub fn ask_continue(&self) -> bool {
+impl<T> Decision<T> {
+	pub fn run_prompt(&self) -> Option<&T> {
 		println!();
 		println!("{}", self.prompt);
-		for action_answer in self.possible_actions.iter().map(|action| &action.answer) {
+		for action_answer in self.possible_choices.iter().map(|action| &action.answer) {
 			println!(" - [{}] {}", action_answer.key, action_answer.choice_text);
 		}
 		println!(
 			" - [{}] {}",
-			self.cancel_choice.key, self.cancel_choice.choice_text
+			self.cancel_answer.key, self.cancel_answer.choice_text
 		);
 		let chosen_action = 'input_loop: loop {
 			let reply = get_reply().to_uppercase();
-			for action in self.possible_actions {
+			for action in &self.possible_choices {
 				if reply.contains(action.answer.key) {
 					break 'input_loop action;
 				}
 			}
-			if reply.contains(self.cancel_choice.key) {
-				return false;
+			if reply.contains(self.cancel_answer.key) {
+				return None;
 			}
 			println!("You must use one of the key letters above marked in '[]' Try again.");
 		};
-		println!();
-		(chosen_action.action_fn)();
-		true
-	}
-	pub fn ask_continue(&self) -> bool {
-		println!();
-		println!("{}", self.prompt);
-		for action_answer in self.possible_actions.iter().map(|action| &action.answer) {
-			println!(" - [{}] {}", action_answer.key, action_answer.choice_text);
-		}
-		println!(
-			" - [{}] {}",
-			self.cancel_choice.key, self.cancel_choice.choice_text
-		);
-		let chosen_action = 'input_loop: loop {
-			let reply = get_reply().to_uppercase();
-			for action in self.possible_actions {
-				if reply.contains(action.answer.key) {
-					break 'input_loop action;
-				}
-			}
-			if reply.contains(self.cancel_choice.key) {
-				return false;
-			}
-			println!("You must use one of the key letters above marked in '[]' Try again.");
-		};
-		println!();
-		(chosen_action.action_fn)();
-		true
+		Some(&chosen_action.value)
 	}
 }
 
-impl Default for Decision {
+impl<T> Default for Decision<T> {
 	fn default() -> Self {
 		Self {
 			prompt:           "What do you want to do?",
-			possible_actions: Default::default(),
-			cancel_choice:    Answer::cancel_answer()
+			possible_choices: Vec::default(),
+			cancel_answer:    Answer::cancel_answer()
 		}
 	}
 }

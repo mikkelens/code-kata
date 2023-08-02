@@ -1,5 +1,7 @@
 use std::{collections::BTreeSet, sync::Arc};
 
+use lazy_static::lazy_static;
+
 mod data;
 mod interaction;
 mod printing;
@@ -13,153 +15,180 @@ use printing::*;
 
 fn main() {
 	'program_loop: loop {
-		const QUESTION: Decision = Decision {
-			possible_actions: &[
-				(
-					("P", "Modify purchase data").into(),
-					purchase_modify_decision as fn()
-				)
-					.into(),
-				(
-					("R", "Modify rule data").into(),
-					rule_modify_decision as fn()
-				)
-					.into(),
-				(("Q", "Query database").into(), query_database as fn()).into()
-			],
-			cancel_choice: Answer::exit_answer(),
-			..Default::default()
-		};
+		lazy_static! {
+			static ref DECISION: Decision<fn()> = Decision {
+				possible_choices: vec![
+					(
+						("P", "Modify purchase data").into(),
+						purchase_modify_decision as fn()
+					)
+						.into(),
+					(
+						("R", "Modify rule data").into(),
+						rule_modify_decision as fn()
+					)
+						.into(),
+					(("Q", "Query database").into(), query_database as fn()).into()
+				],
+				cancel_answer: Answer::exit_answer(),
+				..Default::default()
+			};
+		}
 
-		if !QUESTION.ask_continue() {
+		if let Some(action) = DECISION.run_prompt() {
+			action();
+		} else {
 			break 'program_loop;
 		}
 	}
 }
 
 fn purchase_modify_decision() {
-	const QUESTION: Decision = Decision {
-		prompt: "What do you want to modify in purchase data?",
-		possible_actions: &[
-			(
-				("A", "Add a new purchase entry").into(),
-				add_a_purchase as fn()
-			)
-				.into(),
-			(
-				("M", "Modify an existing purchase entry").into(),
-				modify_a_purchase as fn()
-			)
-				.into(),
-			(
-				("D", "Delete an existing purchase entry").into(),
-				delete_a_purchase as fn()
-			)
-				.into(),
-			(
-				("P", "Print information about the data").into(),
-				print_purchase_data as fn()
-			)
-				.into()
-		],
-		..Default::default()
-	};
-
-	QUESTION.ask_continue();
+	lazy_static! {
+		static ref DECISION: Decision<fn()> = Decision {
+			prompt: "What do you want to modify in purchase data?",
+			possible_choices: vec![
+				(
+					("A", "Add a new purchase entry").into(),
+					add_a_purchase as fn()
+				)
+					.into(),
+				(
+					("M", "Modify an existing purchase entry").into(),
+					modify_a_purchase as fn()
+				)
+					.into(),
+				(
+					("D", "Delete an existing purchase entry").into(),
+					delete_a_purchase as fn()
+				)
+					.into(),
+				(
+					("P", "Print information about the data").into(),
+					print_purchase_data as fn()
+				)
+					.into(),
+			],
+			..Default::default()
+		};
+	}
+	if let Some(action) = DECISION.run_prompt() {
+		action();
+	}
 }
 fn rule_modify_decision() {
-	const QUESTION: Decision = Decision {
-		prompt: "What do you want to modify in rule data?",
-		possible_actions: &[
-			(("A", "Add a new rule entry").into(), add_a_rule as fn()).into(),
-			(
-				("M", "Modify an existing rule entry").into(),
-				modify_a_rule as fn()
-			)
-				.into(),
-			(
-				("D", "Delete an existing rule entry").into(),
-				delete_a_rule as fn()
-			)
-				.into(),
-			(
-				("P", "Print information about the data").into(),
-				print_rule_data as fn()
-			)
-				.into()
-		],
-		..Default::default()
-	};
-	QUESTION.ask_continue();
+	lazy_static! {
+		static ref DECISION: Decision<fn()> = Decision {
+			prompt: "What do you want to modify in rule data?",
+			possible_choices: vec![
+				(("A", "Add a new rule entry").into(), add_a_rule as fn()).into(),
+				(
+					("M", "Modify an existing rule entry").into(),
+					modify_a_rule as fn()
+				)
+					.into(),
+				(
+					("D", "Delete an existing rule entry").into(),
+					delete_a_rule as fn()
+				)
+					.into(),
+				(
+					("P", "Print information about the data").into(),
+					print_rule_data as fn()
+				)
+					.into(),
+			],
+			..Default::default()
+		};
+	}
+	if let Some(action) = DECISION.run_prompt() {
+		action();
+	}
 }
 
 fn print_purchase_data() {
-	const QUESTION: Decision = Decision {
-		prompt: "What purchase data do you want to print out?",
-		possible_actions: &[
-			(("A", "All of them").into(), print_purchase_data_all as fn()).into(),
-			(
-				("O", "An order of them").into(),
-				print_purchase_data_order as fn()
-			)
-				.into(),
-			(
-				("I", "Individual purchase").into(),
-				print_purchase_data_individual as fn()
-			)
-				.into()
-		],
-		..Default::default()
-	};
-	QUESTION.ask_continue();
+	lazy_static! {
+		static ref DECISION: Decision<fn()> = Decision {
+			prompt: "What purchase data do you want to print out?",
+			possible_choices: vec![
+				(("A", "All of them").into(), print_purchase_data_all as fn()).into(),
+				(
+					("O", "An order of them").into(),
+					print_purchase_data_order as fn()
+				)
+					.into(),
+				(
+					("I", "Individual purchase").into(),
+					print_purchase_data_individual as fn()
+				)
+					.into(),
+			],
+			..Default::default()
+		};
+	}
+	if let Some(action) = DECISION.run_prompt() {
+		action();
+	}
 }
 fn print_rule_data() {
-	const QUESTION: Decision = Decision {
-		prompt: "What rule data do you want to print out?",
-		possible_actions: &[
-			(("A", "All of them").into(), print_rule_data_all as fn()).into(),
-			(
-				("I", "Individual rule").into(),
-				print_rule_data_individual as fn()
-			)
-				.into()
-		],
-		..Default::default()
-	};
-	QUESTION.ask_continue();
+	lazy_static! {
+		static ref DECISION: Decision<fn()> = Decision {
+			prompt: "What rule data do you want to print out?",
+			possible_choices: vec![
+				(("A", "All of them").into(), print_rule_data_all as fn()).into(),
+				(
+					("I", "Individual rule").into(),
+					print_rule_data_individual as fn()
+				)
+					.into(),
+			],
+			..Default::default()
+		};
+	}
+	if let Some(action) = DECISION.run_prompt() {
+		action();
+	}
 }
 
 fn query_database() {
-	const QUESTION: Decision = Decision {
-		prompt: "What do you want to use the database for?",
-		possible_actions: &[(
-			("P", "Print processing information").into(),
-			print_processing_decision as fn()
-		)
-			.into()],
-		..Default::default()
-	};
-	QUESTION.ask_continue();
+	lazy_static! {
+		static ref DECISION: Decision<fn()> = Decision {
+			prompt: "What do you want to use the database for?",
+			possible_choices: vec![(
+				("P", "Print processing information").into(),
+				print_processing_decision as fn()
+			)
+				.into()],
+			..Default::default()
+		};
+	}
+	if let Some(action) = DECISION.run_prompt() {
+		action();
+	}
 }
 fn print_processing_decision() {
-	const QUESTION: Decision = Decision {
-		prompt: "How much processing information do you want to print out?",
-		possible_actions: &[
-			(("A", "All purchases").into(), print_processing_all as fn()).into(),
-			(
-				("O", "Order of purchases").into(),
-				print_processing_order as fn()
-			)
-				.into(),
-			(
-				("i", "Individual purchase").into(),
-				print_processing_order as fn()
-			)
-				.into()
-		],
-		..Default::default()
-	};
-	QUESTION.ask_continue();
+	lazy_static! {
+		static ref DECISION: Decision<fn()> = Decision {
+			prompt: "How much processing information do you want to print out?",
+			possible_choices: vec![
+				(("A", "All purchases").into(), print_processing_all as fn()).into(),
+				(
+					("O", "Order of purchases").into(),
+					print_processing_order as fn()
+				)
+					.into(),
+				(
+					("I", "Individual purchase").into(),
+					print_processing_individual as fn()
+				)
+					.into(),
+			],
+			..Default::default()
+		};
+	}
+	if let Some(action) = DECISION.run_prompt() {
+		action();
+	}
 }
 
 fn add_a_purchase() {
@@ -178,7 +207,6 @@ fn add_a_purchase() {
 fn add_a_rule() {
 	let rule = Rule::prompt_creation();
 	let mut rules = load_rules();
-
 	if rules.insert(rule) {
 		save_rules(rules);
 		println!("\nSaved rule into dataset.");
@@ -187,36 +215,37 @@ fn add_a_rule() {
 	}
 }
 fn modify_a_purchase() {
-	const TITLE_STR: &str = "T";
-	const IDENTIFIER_STR: &str = "I";
+	type FnType = fn(Purchase) -> Purchase;
+	lazy_static! {
+		static ref DECISION: Decision<FnType> = Decision {
+			prompt: "What do you want to change about this purchase?",
+			possible_choices: vec![
+				(
+					("T", "Modify title").into(),
+					modify_purchase_title as FnType
+				)
+					.into(),
+				(
+					("I", "Modify identifiers").into(),
+					modify_purchase_identifiers as FnType
+				)
+					.into(),
+			],
+			..Default::default()
+		};
+	}
 	let mut all_purchases = load_purchases();
 	println!("In order to modify a purchase we must first find it.");
 	if let Some(purchase) = quick_find_purchase(all_purchases.clone().iter()) {
 		let mut purchase_modified = purchase.clone();
 
-		
 		'modify_loop: loop {
-			println!("What do you want to change about this purchase?");
-			println!(" - [{}] Modify title", TITLE_STR);
-			println!(" - [{}] Modify identifiers", IDENTIFIER_STR);
-			println!(" - [{}] Exit", EXIT_CHAR);
-			let modifying_fn = 'input_loop: loop {
-				let parsed_decision: Option<fn(Purchase) -> Purchase> =
-					match get_reply().to_uppercase() {
-						s if s.contains(TITLE_STR) => Some(modify_purchase_title),
-						s if s.contains(IDENTIFIER_STR) => Some(modify_purchase_identifiers),
-						s if s.contains(EXIT_CHAR) => return,
-						_ => None
-					};
-				if let Some(action_fn) = parsed_decision {
-					break 'input_loop action_fn;
+			if let Some(modifying_fn) = DECISION.run_prompt() {
+				println!();
+				purchase_modified = modifying_fn(purchase_modified);
+				if get_yes_no_answer("Are you satisfied with the changes made to the purchase?") {
+					break 'modify_loop;
 				}
-				print_unrecognized_command();
-			};
-			println!();
-			purchase_modified = modifying_fn(purchase_modified);
-			if get_yes_no_answer("Are you satisfied with the changes made to the purchase?") {
-				break 'modify_loop;
 			}
 		}
 		let insert_successful = all_purchases.insert(purchase_modified);
@@ -242,36 +271,37 @@ fn modify_purchase_identifiers(mut purchase: Purchase) -> Purchase {
 	purchase
 }
 fn modify_a_rule() {
-	const TITLE_STR: &str = "T";
-	const PROCESS_ACTION_STR: &str = "P";
-	const RULE_TRIGGER_STR: &str = "R";
+	type FnType = fn(Rule) -> Rule;
+	lazy_static! {
+		static ref DECISION: Decision<FnType> = Decision {
+			prompt: "What do you want to change about this rule?",
+			possible_choices: vec![
+				(("T", "Modify title").into(), modify_rule_title as FnType).into(),
+				(
+					("P", "Modify process action").into(),
+					modify_rule_process_action as FnType
+				)
+					.into(),
+				(
+					("R", "Modify rule trigger").into(),
+					modify_rule_trigger as FnType
+				)
+					.into(),
+			],
+			..Default::default()
+		};
+	}
 	let mut all_rules = load_rules();
 	println!("In order to modify a rule we must first find it.");
 	if let Some(rule) = quick_find_rule(all_rules.clone().iter()) {
 		let mut rule_modified = rule.clone();
 		'modify_loop: loop {
-			println!("What do you want to change about this rule?");
-			println!(" - [{}] Modify title", TITLE_STR);
-			println!(" - [{}] Modify process action", PROCESS_ACTION_STR);
-			println!(" - [{}] Modify rule trigger", RULE_TRIGGER_STR);
-			println!(" - [{}] Exit", EXIT_CHAR);
-			let modifying_fn = 'input_loop: loop {
-				let parsed_decision: Option<fn(Rule) -> Rule> = match get_reply().to_uppercase() {
-					s if s.contains(TITLE_STR) => Some(modify_rule_title),
-					s if s.contains(PROCESS_ACTION_STR) => Some(modify_rule_process_action),
-					s if s.contains(RULE_TRIGGER_STR) => Some(modify_rule_trigger),
-					s if s.contains(EXIT_CHAR) => return,
-					_ => None
-				};
-				if let Some(action_fn) = parsed_decision {
-					break 'input_loop action_fn;
+			if let Some(modifying_fn) = DECISION.run_prompt() {
+				println!();
+				rule_modified = modifying_fn(rule_modified);
+				if get_yes_no_answer("Are you satisfied with the changes made to the rule?") {
+					break 'modify_loop;
 				}
-				print_unrecognized_command();
-			};
-			println!();
-			rule_modified = modifying_fn(rule_modified);
-			if get_yes_no_answer("Are you satisfied with the changes made to the rule?") {
-				break 'modify_loop;
 			}
 		}
 		let insert_successful = all_rules.insert(rule_modified);
@@ -337,34 +367,26 @@ fn delete_a_rule() {
 	}
 }
 
-const CANCEL_STR: &str = "C";
-
 fn modify_identifiercollection_directly(all_identifiers: &mut IdentifierCollection) {
-	println!(
-		"Do you want to add [{}] or delete [{}] modifiers? ([{}] to cancel)",
-		ADD_STR, DELETE_STR, CANCEL_STR
-	);
-	let modifying_fn: fn(&mut IdentifierCollection, String) = 'input_loop: loop {
-		break 'input_loop match get_reply().to_uppercase() {
-			s if s.contains(ADD_STR) => {
-				println!("What do you want to add? (Still separated by semicolon)");
-				add_from_str
-			},
-			s if s.contains(DELETE_STR) => {
-				println!("What do you want to delete? (Still separated by semicolon)");
-				remove_from_str
-			},
-			s if s.contains(CANCEL_STR) => {
-				return;
-			},
-			_ => {
-				println!("You must use one of the key letters above to signal intent.");
-				continue 'input_loop;
-			}
+	type FnType = fn(&mut IdentifierCollection, String);
+	lazy_static! {
+		static ref DECISION: Decision<FnType> = Decision {
+			prompt: "What do you want to change about these modifiers?",
+			possible_choices: vec![
+				(("A", "Add identifiers").into(), add_from_str as FnType).into(),
+				(
+					("D", "Delete identifiers").into(),
+					remove_from_str as FnType
+				)
+					.into(),
+			],
+			..Default::default()
 		};
-	};
-	let identifier_reply = get_reply();
-	modifying_fn(all_identifiers, identifier_reply);
+	}
+	if let Some(modifying_fn) = DECISION.run_prompt() {
+		let identifier_reply = get_reply();
+		modifying_fn(all_identifiers, identifier_reply);
+	}
 }
 
 fn add_from_str(all_identifiers: &mut IdentifierCollection, s: impl AsRef<str>) {
@@ -436,7 +458,6 @@ fn quick_find_purchase<'a>(data: impl Iterator<Item = &'a Purchase>) -> Option<&
 				found_matches.retain(|found_match| found_match.has_identifier(&replied_tag));
 				break 'tag_specify_loop;
 			}
-
 			if found_matches.is_empty() {
 				break 'tag_narrow_loop None;
 			}

@@ -7,11 +7,6 @@ use crate::{
 	},
 	quick_find_purchase, quick_find_rule
 };
-pub fn print_unrecognized_command() {
-	const UNRECOGNIZED_COMMAND_STR: &str =
-		"You typed an unrecognized command. Try using the letters in '[]' above.";
-	println!("{}", UNRECOGNIZED_COMMAND_STR);
-}
 
 pub fn print_purchase_data_individual() {
 	let purchases = load_purchases();
