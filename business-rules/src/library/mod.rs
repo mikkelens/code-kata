@@ -59,35 +59,34 @@ impl UserCreated for Rule {
 }
 impl UserCreated for Order {
 	fn prompt_creation() -> Self {
-		let mut order = Order {
-			purchases: PurchaseCollection(BTreeMap::new())
-		};
-		let all_purchases = Purchase::load_from_disk();
-		'purchase_add_loop: loop {
-			println!(
-				"--- Purchase {} ---",
-				order.purchases.0.values().sum::<usize>()
-			);
-			let new_purchase = 'purchase_find_loop: loop {
-				if let Some(purchase) = quick_find_purchase(all_purchases.iter()) {
-					break 'purchase_find_loop purchase;
-				}
-				if !get_yes_no_answer("Failed to find valid purchase. Do you want to try again?") {
+		let purchases = {
+			let all_purchases = Purchase::load_from_disk();
+			let mut purchases = PurchaseCollection(BTreeMap::new());
+			'purchase_add_loop: loop {
+				println!("--- Purchase {} ---", purchases.0.values().sum::<usize>());
+				let new_purchase = 'purchase_find_loop: loop {
+					if let Some(purchase) = quick_find_purchase(all_purchases.iter()) {
+						break 'purchase_find_loop purchase;
+					}
+					if !get_yes_no_answer(
+						"Failed to find valid purchase. Do you want to try again?"
+					) {
+						break 'purchase_add_loop;
+					}
+				};
+				purchases
+					.0
+					.entry(new_purchase.clone())
+					.and_modify(|count| *count += 1)
+					.or_insert(1);
+				println!("Purchase added to order.");
+				if !get_yes_no_answer("Do you want to add another purchase to this order?") {
 					break 'purchase_add_loop;
 				}
-			};
-			order
-				.purchases
-				.0
-				.entry(new_purchase.clone())
-				.and_modify(|count| *count += 1)
-				.or_insert(1);
-			println!("Purchase added to order.");
-			if !get_yes_no_answer("Do you want to add another purchase to this order?") {
-				break 'purchase_add_loop;
 			}
-		}
-		order
+			purchases
+		};
+		Order { purchases }
 	}
 }
 impl UserCreated for RuleTrigger {
