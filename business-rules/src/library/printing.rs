@@ -1,15 +1,14 @@
 use std::collections::BTreeSet;
 
-use crate::{
-	data::{
-		io::{load_purchases, load_rules},
-		types::{Order, Purchase, Rule, UserCreated}
-	},
-	quick_find_purchase, quick_find_rule
+use crate::library::{
+	io::Saved,
+	searching::{quick_find_purchase, quick_find_rule},
+	types::{Order, Purchase, Rule},
+	UserCreated
 };
 
-pub fn print_purchase_data_individual() {
-	let purchases = load_purchases();
+pub(crate) fn print_purchase_data_individual() {
+	let purchases = Purchase::load_from_disk();
 	let possible_purchase = quick_find_purchase(purchases.iter());
 	println!();
 	if let Some(purchase) = possible_purchase {
@@ -18,8 +17,8 @@ pub fn print_purchase_data_individual() {
 		println!("No purchase with the provided specifications could be found.");
 	}
 }
-pub fn print_rule_data_individual() {
-	let rules = load_rules();
+pub(crate) fn print_rule_data_individual() {
+	let rules = Rule::load_from_disk();
 	let possible_rule = quick_find_rule(rules.iter());
 	println!();
 	if let Some(rule) = possible_rule {
@@ -28,7 +27,7 @@ pub fn print_rule_data_individual() {
 		println!("No rule with the provided specifications could be found.");
 	}
 }
-pub fn print_purchase_data_order() {
+pub(crate) fn print_purchase_data_order() {
 	let order = Order::prompt_creation();
 	println!();
 	if order.purchases.0.is_empty() {
@@ -40,27 +39,27 @@ pub fn print_purchase_data_order() {
 		}
 	}
 }
-pub fn print_purchase_data_all() {
-	let all_purchases = load_purchases();
+pub(crate) fn print_purchase_data_all() {
+	let all_purchases = Purchase::load_from_disk();
 	for (index, purchase) in all_purchases.iter().enumerate() {
 		println!("Purchase no. {}:\n{}", index + 1, purchase);
 		println!();
 	}
 }
-pub fn print_rule_data_all() {
-	let all_rules = load_rules();
+pub(crate) fn print_rule_data_all() {
+	let all_rules = Rule::load_from_disk();
 	for (index, rule) in all_rules.iter().enumerate() {
 		println!("Rule no. {}:\n{}", index + 1, rule);
 		println!();
 	}
 }
 
-pub fn print_processing_individual() {
-	let rules = load_rules();
+pub(crate) fn print_processing_individual() {
+	let rules = Rule::load_from_disk();
 	if rules.is_empty() {
 		println!("There are currently no rules to trigger any processes.");
 	} else {
-		let purchases = load_purchases();
+		let purchases = Purchase::load_from_disk();
 		let possible_purchase = quick_find_purchase(purchases.iter());
 		println!();
 		if let Some(purchase) = possible_purchase {
@@ -82,13 +81,13 @@ pub fn print_processing_individual() {
 		}
 	}
 }
-pub fn print_processing_order() {
+pub(crate) fn print_processing_order() {
 	let order = Order::prompt_creation();
 	println!(); // post-user-entry spacing
 	if order.purchases.0.is_empty() {
 		println!("No purchases in order to print.");
 	} else {
-		let rules = load_rules();
+		let rules = Rule::load_from_disk();
 		if rules.is_empty() {
 			println!("There are currently no rules to trigger any processes.");
 		} else {
@@ -102,9 +101,9 @@ pub fn print_processing_order() {
 	}
 }
 
-pub fn print_processing_all() {
-	let all_purchases = load_purchases();
-	let rules = load_rules();
+pub(crate) fn print_processing_all() {
+	let all_purchases = Purchase::load_from_disk();
+	let rules = Rule::load_from_disk();
 	if rules.is_empty() {
 		println!("There are currently no rules to trigger any processes.");
 	} else {
@@ -117,7 +116,7 @@ pub fn print_processing_all() {
 	}
 }
 
-pub fn print_processing_steps(purchase: &Purchase, rules: &BTreeSet<Rule>) {
+pub(crate) fn print_processing_steps(purchase: &Purchase, rules: &BTreeSet<Rule>) {
 	let processing_steps = purchase.get_processing_steps(rules);
 	if processing_steps.is_empty() {
 		println!("This purchase does trigger any processing rules.");

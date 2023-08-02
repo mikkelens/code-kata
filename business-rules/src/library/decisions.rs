@@ -1,5 +1,4 @@
-#[allow(clippy::wildcard_imports)]
-use crate::data::io::*;
+use crate::library::io::get_reply;
 
 pub struct Decision<F: 'static> {
 	pub prompt:           &'static str,

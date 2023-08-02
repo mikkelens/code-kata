@@ -6,15 +6,8 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use super::io::{load_purchases, prompt_question};
-use crate::{
-	add_from_str,
-	data::io::{get_reply, get_yes_no_answer},
-	modify_identifiercollection_directly, quick_find_purchase
-};
-
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub struct Identifier(pub Arc<str>);
+pub(crate) struct Identifier(pub(crate) Arc<str>);
 impl<T: AsRef<str>> From<T> for Identifier {
 	fn from(value: T) -> Self { Identifier(Arc::from(value.as_ref())) }
 }
@@ -22,43 +15,18 @@ impl Display for Identifier {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "'{}'", self.0) }
 }
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone, Default)]
-pub struct IdentifierCollection(pub BTreeSet<Identifier>);
+pub(crate) struct IdentifierCollection(pub(crate) BTreeSet<Identifier>);
 impl From<&[Identifier]> for IdentifierCollection {
 	fn from(value: &[Identifier]) -> Self { IdentifierCollection(value.iter().cloned().collect()) }
 }
-impl UserCreated for IdentifierCollection {
-	fn prompt_creation() -> Self {
-		println!("Please provide some tags (separated by semicolon).");
-		let mut all_identifiers = IdentifierCollection::default();
-		// always start by adding
-		let add_reply = get_reply();
-		add_from_str(&mut all_identifiers, add_reply);
-		'review_modify_loop: loop {
-			println!(
-				"Identifiers: [{}]",
-				all_identifiers
-					.0
-					.iter()
-					.map(|i| i.0.as_ref())
-					.collect::<Vec<_>>()
-					.join(", ")
-			);
-			if get_yes_no_answer("Are you satisfied with the identifiers?") {
-				break 'review_modify_loop;
-			}
-			modify_identifiercollection_directly(&mut all_identifiers);
-		}
-		all_identifiers
-	}
-}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub struct Purchase {
-	pub title:       Arc<str>,
-	pub identifiers: IdentifierCollection
+pub(crate) struct Purchase {
+	pub(crate) title:       Arc<str>,
+	pub(crate) identifiers: IdentifierCollection
 }
 impl Purchase {
-	pub fn get_processing_steps(&self, rules: &BTreeSet<Rule>) -> Vec<Arc<str>> {
+	pub(crate) fn get_processing_steps(&self, rules: &BTreeSet<Rule>) -> Vec<Arc<str>> {
 		rules
 			.iter()
 			.filter(|rule| rule.trigger.triggered_by(self))
@@ -66,15 +34,17 @@ impl Purchase {
 			.collect()
 	}
 
-	pub fn title_matches(&self, other_title: &str) -> bool {
+	pub(crate) fn title_matches(&self, other_title: &str) -> bool {
 		self.title.to_lowercase().trim() == other_title.to_lowercase().trim()
 	}
 
-	pub fn has_identifier(&self, identifier: &Identifier) -> bool {
+	pub(crate) fn has_identifier(&self, identifier: &Identifier) -> bool {
 		self.identifiers.0.contains(identifier)
 	}
 
-	pub fn get_all_ídentifiers(&self) -> Vec<&Identifier> { self.identifiers.0.iter().collect() }
+	pub(crate) fn get_all_ídentifiers(&self) -> Vec<&Identifier> {
+		self.identifiers.0.iter().collect()
+	}
 }
 impl Display for Purchase {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -93,60 +63,27 @@ impl Display for Purchase {
 }
 
 #[derive(Debug)]
-pub struct PurchaseCollection(pub BTreeMap<Purchase, usize>);
+pub(crate) struct PurchaseCollection(pub(crate) BTreeMap<Purchase, usize>);
 #[derive(Debug)]
-pub struct Order {
-	pub purchases: PurchaseCollection
-}
-impl UserCreated for Order {
-	fn prompt_creation() -> Self {
-		let mut order = Order {
-			purchases: PurchaseCollection(BTreeMap::new())
-		};
-		let all_purchases = load_purchases();
-		'purchase_add_loop: loop {
-			println!(
-				"--- Purchase {} ---",
-				order.purchases.0.values().sum::<usize>()
-			);
-			let new_purchase = 'purchase_find_loop: loop {
-				if let Some(purchase) = quick_find_purchase(all_purchases.iter()) {
-					break 'purchase_find_loop purchase;
-				}
-				if !get_yes_no_answer("Failed to find valid purchase. Do you want to try again?") {
-					break 'purchase_add_loop;
-				}
-			};
-			order
-				.purchases
-				.0
-				.entry(new_purchase.clone())
-				.and_modify(|count| *count += 1)
-				.or_insert(1);
-			println!("Purchase added to order.");
-			if !get_yes_no_answer("Do you want to add another purchase to this order?") {
-				break 'purchase_add_loop;
-			}
-		}
-		order
-	}
+pub(crate) struct Order {
+	pub(crate) purchases: PurchaseCollection
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub enum IdentifierCondition {
+pub(crate) enum IdentifierCondition {
 	None,
 	Any,
 	All
 }
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub enum CombinationCondition {
+pub(crate) enum CombinationCondition {
 	None,
 	ExactlyOne,
 	Either,
 	Both
 }
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub enum RuleTrigger {
+pub(crate) enum RuleTrigger {
 	Never,
 	Always,
 	Title {
@@ -165,107 +102,7 @@ pub enum RuleTrigger {
 		flipped_rule: Box<RuleTrigger>
 	}
 }
-pub trait UserCreated {
-	fn prompt_creation() -> Self;
-}
-impl UserCreated for RuleTrigger {
-	fn prompt_creation() -> Self {
-		println!("Select the type of trigger for this rule:");
-		println!(" - [Never] trigger");
-		println!(" - [Always] trigger");
-		println!(" - Trigger on [Title] match");
-		println!(" - Trigger on [Identifier] match");
-		println!(" - Trigger on a [Combination] of other rules");
-		println!(" - Trigger when another is [Not] triggered");
-		'trigger_parse: loop {
-			let reply = get_reply();
-			break 'trigger_parse match reply.to_lowercase() {
-				s if s.contains("never") => RuleTrigger::Never,
-				s if s.contains("always") => RuleTrigger::Always,
-				s if s.contains("title") => RuleTrigger::Title {
-					name: Arc::from(prompt_question(
-						"What should the title of the purchase be for this rule to trigger?"
-					))
-				},
-				s if s.contains("identifier") => {
-					let identifiers = IdentifierCollection::prompt_creation();
-					let condition = match identifiers.0.len() {
-						1 => {
-							println!("Condition of single identifier is set to 'Any' by default.");
-							IdentifierCondition::Any
-						},
-						_ => 'condition_parse: loop {
-							println!("Select the condition to trigger this Identifier rule:");
-							println!(" - [None] of the identifiers can be present");
-							println!(" - [Any] of the identifiers have to be present");
-							println!(" - [All] of the identifiers have to be present");
-							let reply = get_reply();
-							break 'condition_parse match reply.to_lowercase() {
-								s if s.contains("none") => IdentifierCondition::None,
-								s if s.contains("any") => IdentifierCondition::Any,
-								s if s.contains("all") => IdentifierCondition::All,
-								s => {
-									println!("'{}' was not recognized as one of the options.", s);
-									println!("Try again.");
-									continue 'condition_parse;
-								}
-							};
-						}
-					};
-					RuleTrigger::Identifier {
-						identifiers,
-						condition
-					}
-				},
-				s if s.contains("combination") => {
-					println!("In order to make a combination of rule triggers,");
-					println!("you must provide two different triggers.");
-					println!("Are you sure you want to proceed?");
-					RuleTrigger::Combination {
-						a:         {
-							println!("--- RULE TRIGGER A ---");
-							Box::new(Self::prompt_creation())
-						},
-						b:         {
-							println!("--- RULE TRIGGER A ---");
-							Box::new(Self::prompt_creation())
-						},
-						condition: {
-							'condition_parse: loop {
-								println!("Select the combinational trigger of this rule:");
-								println!(" - [None] of the triggers need to be active");
-								println!(" - [ExactlyOne] of the triggers has to be active");
-								println!(" - [Either] one of the triggers has to be active");
-								println!(" - [Both] of the triggers have to be cative");
-								let reply = get_reply();
-								break 'condition_parse match reply.to_lowercase() {
-									s if s.contains("none") => CombinationCondition::None,
-									s if s.contains("exactly") => CombinationCondition::ExactlyOne,
-									s if s.contains("either") => CombinationCondition::Either,
-									s if s.contains("both") => CombinationCondition::Both,
-									s => {
-										println!(
-											"'{}' was not recognized as one of the options.",
-											s
-										);
-										println!("Try again.");
-										continue 'condition_parse;
-									}
-								};
-							}
-						}
-					}
-				},
-				s if s.contains("not") => todo!(),
-				s => {
-					println!("'{}' was not recognized as one of the options.", s);
-					println!("Try again.");
-					continue 'trigger_parse;
-				}
-			};
-		}
-	}
-}
+
 impl RuleTrigger {
 	fn triggered_by(&self, purchase: &Purchase) -> bool {
 		match self {
@@ -306,22 +143,12 @@ impl RuleTrigger {
 	}
 }
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub struct Rule {
-	pub title:          Arc<str>,
-	pub process_action: Arc<str>, // process
-	pub trigger:        RuleTrigger
+pub(crate) struct Rule {
+	pub(crate) title:          Arc<str>,
+	pub(crate) process_action: Arc<str>, // process
+	pub(crate) trigger:        RuleTrigger
 }
-impl UserCreated for Rule {
-	fn prompt_creation() -> Self {
-		Rule {
-			title:          Arc::from(prompt_question("What should the title of this rule be?")),
-			process_action: Arc::from(prompt_question(
-				"What should happen when this rule is triggered?"
-			)),
-			trigger:        RuleTrigger::prompt_creation()
-		}
-	}
-}
+
 impl Display for Rule {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(

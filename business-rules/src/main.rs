@@ -1,17 +1,10 @@
-use std::{collections::BTreeSet, sync::Arc};
+use std::sync::Arc;
+
+mod library;
 
 use lazy_static::lazy_static;
-
-mod data;
-mod interaction;
-mod printing;
-
 #[allow(clippy::wildcard_imports)]
-use data::{io::*, types::*};
-#[allow(clippy::wildcard_imports)]
-use interaction::*;
-#[allow(clippy::wildcard_imports)]
-use printing::*;
+use library::{decisions::*, io::*, printing::*, searching::*, types::*, *};
 
 fn main() {
 	'program_loop: loop {
@@ -192,13 +185,10 @@ fn print_processing_decision() {
 }
 
 fn add_a_purchase() {
-	let new_purchase = Purchase {
-		title:       Arc::from(prompt_question("Provide a title to the purchase.")),
-		identifiers: IdentifierCollection::prompt_creation()
-	};
-	let mut all_purchases = load_purchases();
+	let new_purchase = Purchase::prompt_creation();
+	let mut all_purchases = Purchase::load_from_disk();
 	if all_purchases.insert(new_purchase) {
-		save_purchases(all_purchases);
+		Purchase::save_to_disk(all_purchases);
 		println!("\nSaved item into dataset.");
 	} else {
 		println!("\nThis exact item already exists in the dataset, skipping saving.");
@@ -206,9 +196,9 @@ fn add_a_purchase() {
 }
 fn add_a_rule() {
 	let rule = Rule::prompt_creation();
-	let mut rules = load_rules();
+	let mut rules = Rule::load_from_disk();
 	if rules.insert(rule) {
-		save_rules(rules);
+		Rule::save_to_disk(rules);
 		println!("\nSaved rule into dataset.");
 	} else {
 		println!("\nThis exact rule already exists in the dataset, skipping saving.");
@@ -234,7 +224,7 @@ fn modify_a_purchase() {
 			..Default::default()
 		};
 	}
-	let mut all_purchases = load_purchases();
+	let mut all_purchases = Purchase::load_from_disk();
 	println!("In order to modify a purchase we must first find it.");
 	if let Some(purchase) = quick_find_purchase(all_purchases.clone().iter()) {
 		let mut purchase_modified = purchase.clone();
@@ -259,7 +249,7 @@ fn modify_a_purchase() {
 				unreachable!("Could not remove purchase we just found?");
 			}
 		}
-		save_purchases(all_purchases);
+		Purchase::save_to_disk(all_purchases);
 	}
 }
 fn modify_purchase_title(mut purchase: Purchase) -> Purchase {
@@ -291,7 +281,7 @@ fn modify_a_rule() {
 			..Default::default()
 		};
 	}
-	let mut all_rules = load_rules();
+	let mut all_rules = Rule::load_from_disk();
 	println!("In order to modify a rule we must first find it.");
 	if let Some(rule) = quick_find_rule(all_rules.clone().iter()) {
 		let mut rule_modified = rule.clone();
@@ -315,7 +305,7 @@ fn modify_a_rule() {
 				unreachable!("Could not remove rule we just found?");
 			}
 		}
-		save_rules(all_rules);
+		Rule::save_to_disk(all_rules);
 	}
 }
 fn modify_rule_title(mut rule: Rule) -> Rule {
@@ -334,13 +324,13 @@ fn modify_rule_trigger(mut rule: Rule) -> Rule {
 }
 fn delete_a_purchase() {
 	println!("In order to delete a purchase we must first find it.");
-	let mut all_purchases = load_purchases();
+	let mut all_purchases = Purchase::load_from_disk();
 	if let Some(purchase) = quick_find_purchase(all_purchases.clone().iter()) {
 		let confirmation_question =
 			format!("Are you sure you want to delete...\n{:?}\n...?", purchase);
 		if get_yes_no_answer(confirmation_question) {
 			all_purchases.remove(purchase);
-			save_purchases(all_purchases);
+			Purchase::save_to_disk(all_purchases);
 			println!("\nPurchase was removed from dataset.");
 		} else {
 			println!("\nPurchase was kept in dataset.");
@@ -351,13 +341,13 @@ fn delete_a_purchase() {
 }
 fn delete_a_rule() {
 	println!("In order to delete a rule we must first find it.");
-	let rules = load_rules();
+	let rules = Rule::load_from_disk();
 	let mut updated_rules = rules.clone();
 	if let Some(rule) = quick_find_rule(rules.iter()) {
 		let confirmation_question = format!("Are you sure you want to delete...\n{:?}\n...?", rule);
 		if get_yes_no_answer(confirmation_question) {
 			updated_rules.remove(rule);
-			save_rules(updated_rules);
+			Rule::save_to_disk(updated_rules);
 			println!("\nRule was removed from dataset.");
 		} else {
 			println!("\nRule was kept in dataset.");
@@ -366,7 +356,6 @@ fn delete_a_rule() {
 		println!("\nNo rule with the provided specifications could be found.");
 	}
 }
-
 fn modify_identifiercollection_directly(all_identifiers: &mut IdentifierCollection) {
 	type FnType = fn(&mut IdentifierCollection, String);
 	lazy_static! {
@@ -388,7 +377,6 @@ fn modify_identifiercollection_directly(all_identifiers: &mut IdentifierCollecti
 		modifying_fn(all_identifiers, identifier_reply);
 	}
 }
-
 fn add_from_str(all_identifiers: &mut IdentifierCollection, s: impl AsRef<str>) {
 	let identifiers_to_add = s.as_ref().split(';').map(str::trim).collect::<Vec<_>>();
 	for identifier in identifiers_to_add {
@@ -415,89 +403,5 @@ fn remove_from_str(all_identifiers: &mut IdentifierCollection, s: impl AsRef<str
 				identifier.0
 			);
 		}
-	}
-}
-
-fn quick_find_purchase<'a>(data: impl Iterator<Item = &'a Purchase>) -> Option<&'a Purchase> {
-	let title = prompt_question("What is the title of the purchase?");
-	let mut found_matches: Vec<&Purchase> = data
-		.filter(|purchase| purchase.title_matches(&title))
-		.collect();
-	if found_matches.is_empty() {
-		None
-	} else if found_matches.len() == 1 {
-		Some(found_matches.remove(0))
-	} else {
-		println!("Purchases with the same name were found in the dataset.");
-		println!("Tags present for purchases with this name:",);
-
-		'tag_narrow_loop: loop {
-			let unique_tags: BTreeSet<&Identifier> = found_matches
-				.iter()
-				.flat_map(|purchase| purchase.get_all_ídentifiers()) // iter of vecs to vec
-				.collect(); // unique
-			println!(
-				"[{}] (unordered)",
-				unique_tags
-					.into_iter()
-					.map(|i| i.0.as_ref())
-					.collect::<Vec<_>>()
-					.join(", ")
-			);
-			println!("Choose a tag to narrow the search by.");
-			'tag_specify_loop: loop {
-				let replied_tag: Identifier = get_reply().into();
-				let tag_recognized = found_matches
-					.iter()
-					.any(|found_match| found_match.has_identifier(&replied_tag));
-				if !tag_recognized {
-					println!("Tag was not found in the collection of matches.");
-					println!("Try again.");
-					continue 'tag_specify_loop;
-				}
-				found_matches.retain(|found_match| found_match.has_identifier(&replied_tag));
-				break 'tag_specify_loop;
-			}
-			if found_matches.is_empty() {
-				break 'tag_narrow_loop None;
-			}
-			if found_matches.len() == 1 {
-				break 'tag_narrow_loop Some(found_matches.remove(0));
-			}
-			println!("Multiple purchases share provided tag(s) in the dataset.");
-			println!("Tags present for purchases with specified name and tags:");
-		}
-	}
-}
-fn quick_find_rule<'a>(data: impl Iterator<Item = &'a Rule>) -> Option<&'a Rule> {
-	let title = prompt_question("What is the title of the rule?");
-	let mut found_matches: Vec<&Rule> = data
-		.filter(|purchase| purchase.title.as_ref() == title)
-		.collect();
-	if found_matches.is_empty() {
-		None
-	} else if found_matches.len() == 1 {
-		Some(found_matches.remove(0))
-	} else {
-		println!("Rules with the same name were found in the dataset.");
-		for (index, rule) in found_matches.iter().enumerate() {
-			println!("Rule {} process_action: {}", index, rule.process_action);
-		}
-		println!("Choose a rule using its index (number to the left).");
-		let selected_match = 'index_request_loop: loop {
-			let reply = get_reply();
-			let Ok(unsigned_int_reply) = reply.trim().parse::<usize>() else {
-				println!("Reply was not an unsigned integer.");
-				println!("Try again.");
-				continue 'index_request_loop;
-			};
-			if unsigned_int_reply >= found_matches.len() {
-				println!("Reply index was not inside the range of the found matches.");
-				println!("Try again.");
-				continue 'index_request_loop;
-			}
-			break 'index_request_loop found_matches.remove(unsigned_int_reply);
-		};
-		Some(selected_match)
 	}
 }
