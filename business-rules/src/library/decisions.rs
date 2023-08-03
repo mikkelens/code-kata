@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use crate::library::io::get_reply;
 
 pub struct Decision<F: 'static> {
-	pub prompt:           &'static str,
+	pub prompt:           Arc<str>,
 	pub possible_choices: Vec<Choice<F>>,
 	pub cancel_answer:    Answer
 }
@@ -44,8 +46,11 @@ impl<T> From<(Answer, T)> for Choice<T> {
 	}
 }
 
-impl<T> Decision<T> {
-	pub fn run_prompt(&self) -> Option<&T> {
+impl<T> Decision<T>
+where
+	T: Clone
+{
+	pub fn run_prompt(&self) -> Option<T> {
 		println!();
 		println!("{}", self.prompt);
 		for action_answer in self.possible_choices.iter().map(|action| &action.answer) {
@@ -67,14 +72,14 @@ impl<T> Decision<T> {
 			}
 			println!("You must use one of the key letters above marked in '[]' Try again.");
 		};
-		Some(&chosen_action.value)
+		Some(chosen_action.value.clone())
 	}
 }
 
 impl<T> Default for Decision<T> {
 	fn default() -> Self {
 		Self {
-			prompt:           "What do you want to do?",
+			prompt:           "What do you want to do?".into(),
 			possible_choices: Vec::default(),
 			cancel_answer:    Answer::cancel_answer()
 		}

@@ -3,8 +3,9 @@ use std::sync::Arc;
 mod library;
 
 use lazy_static::lazy_static;
+use library::user_creation::{TryUserCreate, UserCreate};
 #[allow(clippy::wildcard_imports)]
-use library::{decisions::*, io::*, printing::*, searching::*, types::*, *};
+use library::{decisions::*, io::*, printing::*, searching::*, types::*};
 
 fn main() {
 	'program_loop: loop {
@@ -39,7 +40,7 @@ fn main() {
 fn purchase_modify_decision() {
 	lazy_static! {
 		static ref DECISION: Decision<fn()> = Decision {
-			prompt: "What do you want to modify in purchase data?",
+			prompt: "What do you want to modify in purchase data?".into(),
 			possible_choices: vec![
 				(
 					("A", "Add a new purchase entry").into(),
@@ -72,7 +73,7 @@ fn purchase_modify_decision() {
 fn rule_modify_decision() {
 	lazy_static! {
 		static ref DECISION: Decision<fn()> = Decision {
-			prompt: "What do you want to modify in rule data?",
+			prompt: "What do you want to modify in rule data?".into(),
 			possible_choices: vec![
 				(("A", "Add a new rule entry").into(), add_a_rule as fn()).into(),
 				(
@@ -102,9 +103,13 @@ fn rule_modify_decision() {
 fn print_purchase_data() {
 	lazy_static! {
 		static ref DECISION: Decision<fn()> = Decision {
-			prompt: "What purchase data do you want to print out?",
+			prompt: "What rule data do you want to print out?".into(),
 			possible_choices: vec![
-				(("A", "All of them").into(), print_purchase_data_all as fn()).into(),
+				(
+					("A", "All of them").into(),
+					print_data_all::<Purchase> as fn()
+				)
+					.into(),
 				(
 					("O", "An order of them").into(),
 					print_purchase_data_order as fn()
@@ -112,7 +117,7 @@ fn print_purchase_data() {
 					.into(),
 				(
 					("I", "Individual purchase").into(),
-					print_purchase_data_individual as fn()
+					print_data_individual::<Purchase> as fn()
 				)
 					.into(),
 			],
@@ -126,12 +131,12 @@ fn print_purchase_data() {
 fn print_rule_data() {
 	lazy_static! {
 		static ref DECISION: Decision<fn()> = Decision {
-			prompt: "What rule data do you want to print out?",
+			prompt: "What rule data do you want to print out?".into(),
 			possible_choices: vec![
-				(("A", "All of them").into(), print_rule_data_all as fn()).into(),
+				(("A", "All of them").into(), print_data_all::<Rule> as fn()).into(),
 				(
 					("I", "Individual rule").into(),
-					print_rule_data_individual as fn()
+					print_data_individual::<Rule> as fn()
 				)
 					.into(),
 			],
@@ -146,7 +151,7 @@ fn print_rule_data() {
 fn query_database() {
 	lazy_static! {
 		static ref DECISION: Decision<fn()> = Decision {
-			prompt: "What do you want to use the database for?",
+			prompt: "What do you want to use the database for?".into(),
 			possible_choices: vec![(
 				("P", "Print processing information").into(),
 				print_processing_decision as fn()
@@ -162,7 +167,7 @@ fn query_database() {
 fn print_processing_decision() {
 	lazy_static! {
 		static ref DECISION: Decision<fn()> = Decision {
-			prompt: "How much processing information do you want to print out?",
+			prompt: "How much processing information do you want to print out?".into(),
 			possible_choices: vec![
 				(("A", "All purchases").into(), print_processing_all as fn()).into(),
 				(
@@ -195,20 +200,21 @@ fn add_a_purchase() {
 	}
 }
 fn add_a_rule() {
-	let rule = Rule::prompt_creation();
-	let mut rules = Rule::load_from_disk();
-	if rules.insert(rule) {
-		Rule::save_to_disk(rules);
-		println!("\nSaved rule into dataset.");
-	} else {
-		println!("\nThis exact rule already exists in the dataset, skipping saving.");
+	if let Some(rule) = Rule::try_prompt_creation() {
+		let mut rules = Rule::load_from_disk();
+		if rules.insert(rule) {
+			Rule::save_to_disk(rules);
+			println!("\nSaved rule into dataset.");
+		} else {
+			println!("\nThis exact rule already exists in the dataset, skipping saving.");
+		}
 	}
 }
 fn modify_a_purchase() {
 	type FnType = fn(Purchase) -> Purchase;
 	lazy_static! {
 		static ref DECISION: Decision<FnType> = Decision {
-			prompt: "What do you want to change about this purchase?",
+			prompt: "What do you want to change about this purchase?".into(),
 			possible_choices: vec![
 				(
 					("T", "Modify title").into(),
@@ -226,7 +232,7 @@ fn modify_a_purchase() {
 	}
 	let mut all_purchases = Purchase::load_from_disk();
 	println!("In order to modify a purchase we must first find it.");
-	if let Some(purchase) = quick_find_purchase(all_purchases.clone().iter()) {
+	if let Some(purchase) = Purchase::quick_find(all_purchases.clone().iter()) {
 		let mut purchase_modified = purchase.clone();
 
 		'modify_loop: loop {
@@ -261,20 +267,24 @@ fn modify_purchase_identifiers(mut purchase: Purchase) -> Purchase {
 	purchase
 }
 fn modify_a_rule() {
-	type FnType = fn(Rule) -> Rule;
+	type FnType = fn(Rule) -> Option<Rule>;
 	lazy_static! {
 		static ref DECISION: Decision<FnType> = Decision {
-			prompt: "What do you want to change about this rule?",
+			prompt: "What do you want to change about this rule?".into(),
 			possible_choices: vec![
-				(("T", "Modify title").into(), modify_rule_title as FnType).into(),
+				(
+					("T", "Modify title").into(),
+					try_modify_rule_title as FnType
+				)
+					.into(),
 				(
 					("P", "Modify process action").into(),
-					modify_rule_process_action as FnType
+					try_modify_rule_process_action as FnType
 				)
 					.into(),
 				(
 					("R", "Modify rule trigger").into(),
-					modify_rule_trigger as FnType
+					try_modify_rule_trigger as FnType
 				)
 					.into(),
 			],
@@ -283,13 +293,22 @@ fn modify_a_rule() {
 	}
 	let mut all_rules = Rule::load_from_disk();
 	println!("In order to modify a rule we must first find it.");
-	if let Some(rule) = quick_find_rule(all_rules.clone().iter()) {
+	if let Some(rule) = Rule::quick_find(all_rules.clone().iter()) {
 		let mut rule_modified = rule.clone();
 		'modify_loop: loop {
 			if let Some(modifying_fn) = DECISION.run_prompt() {
 				println!();
-				rule_modified = modifying_fn(rule_modified);
-				if get_yes_no_answer("Are you satisfied with the changes made to the rule?") {
+				if let Some(modified_rule) = modifying_fn(rule_modified.clone()) {
+					rule_modified = modified_rule;
+					if get_yes_no_answer("Are you satisfied with the changes made to the rule?") {
+						break 'modify_loop;
+					}
+				} else {
+					println!("Rule modification canceled.");
+					if rule == &rule_modified {
+						println!("No modifications were made, returning...");
+						return;
+					}
 					break 'modify_loop;
 				}
 			}
@@ -308,24 +327,26 @@ fn modify_a_rule() {
 		Rule::save_to_disk(all_rules);
 	}
 }
-fn modify_rule_title(mut rule: Rule) -> Rule {
-	rule.title = Arc::from(prompt_question("What would you like the new title to be?"));
-	rule
+fn try_modify_rule_title(mut rule: Rule) -> Option<Rule> {
+	rule.title = Arc::from(try_prompt_question(
+		"What would you like the new title to be?"
+	)?);
+	Some(rule)
 }
-fn modify_rule_process_action(mut rule: Rule) -> Rule {
-	rule.title = Arc::from(prompt_question(
+fn try_modify_rule_process_action(mut rule: Rule) -> Option<Rule> {
+	rule.title = Arc::from(try_prompt_question(
 		"What would you like the new process action to be?"
-	));
-	rule
+	)?);
+	Some(rule)
 }
-fn modify_rule_trigger(mut rule: Rule) -> Rule {
-	rule.trigger = RuleTrigger::prompt_creation();
-	rule
+fn try_modify_rule_trigger(mut rule: Rule) -> Option<Rule> {
+	rule.trigger = RuleTrigger::try_prompt_creation()?;
+	Some(rule)
 }
 fn delete_a_purchase() {
 	println!("In order to delete a purchase we must first find it.");
 	let mut all_purchases = Purchase::load_from_disk();
-	if let Some(purchase) = quick_find_purchase(all_purchases.clone().iter()) {
+	if let Some(purchase) = Purchase::quick_find(all_purchases.clone().iter()) {
 		let confirmation_question =
 			format!("Are you sure you want to delete...\n{:?}\n...?", purchase);
 		if get_yes_no_answer(confirmation_question) {
@@ -343,7 +364,7 @@ fn delete_a_rule() {
 	println!("In order to delete a rule we must first find it.");
 	let rules = Rule::load_from_disk();
 	let mut updated_rules = rules.clone();
-	if let Some(rule) = quick_find_rule(rules.iter()) {
+	if let Some(rule) = Rule::quick_find(rules.iter()) {
 		let confirmation_question = format!("Are you sure you want to delete...\n{:?}\n...?", rule);
 		if get_yes_no_answer(confirmation_question) {
 			updated_rules.remove(rule);
@@ -360,7 +381,7 @@ fn modify_identifiercollection_directly(all_identifiers: &mut IdentifierCollecti
 	type FnType = fn(&mut IdentifierCollection, String);
 	lazy_static! {
 		static ref DECISION: Decision<FnType> = Decision {
-			prompt: "What do you want to change about these modifiers?",
+			prompt: "What do you want to change about these modifiers?".into(),
 			possible_choices: vec![
 				(("A", "Add identifiers").into(), add_from_str as FnType).into(),
 				(

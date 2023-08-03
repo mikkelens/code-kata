@@ -104,18 +104,24 @@ pub(crate) fn get_yes_no_answer<T: AsRef<str>>(question: T) -> bool {
 		println!("You need to answer with a yes [Y] or no [N].");
 	}
 }
-pub(crate) fn prompt_question<T: AsRef<str>>(question: T) -> String {
+pub(crate) fn prompt_question(question: impl AsRef<str>) -> String {
 	println!("{}", question.as_ref());
 	get_reply()
 }
-pub(crate) fn get_reply() -> String {
+pub(crate) fn try_prompt_question(question: impl AsRef<str>) -> Option<String> {
+	println!("{}", question.as_ref());
+	try_get_reply()
+}
+pub(crate) fn get_reply() -> String { try_get_reply().expect("flush failed") }
+pub(crate) fn try_get_reply() -> Option<String> {
 	print!("> ");
 	// flush enables us to write without a newline and have it display pre-input
-	stdout().flush().expect("flush failed"); // possibly breaks everything in certain terminal environments
-	read_line().trim().to_string()
+	stdout().flush().ok()?; // possibly breaks everything in certain terminal environments
+	Some(read_line().trim().to_string())
 }
-pub(crate) fn read_line() -> String {
+pub(crate) fn read_line() -> String { try_read_line().expect("unable to read line") }
+pub(crate) fn try_read_line() -> Option<String> {
 	let mut buffer = String::new();
-	stdin().read_line(&mut buffer).expect("unable to read line");
-	buffer
+	stdin().read_line(&mut buffer).ok()?;
+	Some(buffer)
 }

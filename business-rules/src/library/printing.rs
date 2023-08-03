@@ -1,58 +1,61 @@
-use std::collections::BTreeSet;
+use std::{any::type_name, collections::BTreeSet, fmt::Display};
 
+use super::user_creation::UserCreate;
 use crate::library::{
 	io::Saved,
-	searching::{quick_find_purchase, quick_find_rule},
-	types::{Order, Purchase, Rule},
-	UserCreated
+	searching::Searchable,
+	types::{Order, Purchase, Rule}
 };
 
-pub(crate) fn print_purchase_data_individual() {
-	let purchases = Purchase::load_from_disk();
-	let possible_purchase = quick_find_purchase(purchases.iter());
-	println!();
-	if let Some(purchase) = possible_purchase {
-		println!("Purchase:\n{}", purchase);
-	} else {
-		println!("No purchase with the provided specifications could be found.");
+pub trait NeatPrintable {
+	fn print(&self);
+}
+impl NeatPrintable for Purchase {
+	fn print(&self) {
+		println!("Purchase:\n{}", self);
 	}
 }
-pub(crate) fn print_rule_data_individual() {
-	let rules = Rule::load_from_disk();
-	let possible_rule = quick_find_rule(rules.iter());
-	println!();
-	if let Some(rule) = possible_rule {
-		println!("Purchase:\n{}", rule);
-	} else {
-		println!("No rule with the provided specifications could be found.");
+impl NeatPrintable for Rule {
+	fn print(&self) {
+		println!("Rule:\n{}", self);
 	}
 }
-pub(crate) fn print_purchase_data_order() {
-	let order = Order::prompt_creation();
+pub(crate) fn print_data_individual<T: NeatPrintable + for<'a> Searchable<'a> + Saved>() {
+	let all = T::load_from_disk();
+	let possible_item = T::quick_find(all.iter());
 	println!();
-	if order.purchases.0.is_empty() {
-		println!("No purchases in order to print.");
+	if let Some(item) = possible_item {
+		item.print();
 	} else {
-		for (index, (purchase, amount)) in order.purchases.0.iter().enumerate() {
-			println!("Purchase no. {} (x{}):\n{}", index + 1, amount, purchase);
+		println!(
+			"No {} with the provided specifications could be found.",
+			type_name::<T>()
+		);
+	}
+}
+
+impl NeatPrintable for Order {
+	fn print(&self) {
+		if self.purchases.0.is_empty() {
+			println!("No purchases in order to print.");
+		} else {
+			for (index, (purchase, amount)) in self.purchases.0.iter().enumerate() {
+				println!("Purchase no. {} (x{}):\n{}", index + 1, amount, purchase);
+				println!();
+			}
+		}
+	}
+}
+pub(crate) fn print_purchase_data_order() { Order::prompt_creation().print() }
+impl<T: Display> NeatPrintable for BTreeSet<T> {
+	fn print(&self) {
+		for (index, item) in self.iter().enumerate() {
+			println!("{} no. {}:\n{}", type_name::<T>(), index + 1, item);
 			println!();
 		}
 	}
 }
-pub(crate) fn print_purchase_data_all() {
-	let all_purchases = Purchase::load_from_disk();
-	for (index, purchase) in all_purchases.iter().enumerate() {
-		println!("Purchase no. {}:\n{}", index + 1, purchase);
-		println!();
-	}
-}
-pub(crate) fn print_rule_data_all() {
-	let all_rules = Rule::load_from_disk();
-	for (index, rule) in all_rules.iter().enumerate() {
-		println!("Rule no. {}:\n{}", index + 1, rule);
-		println!();
-	}
-}
+pub(crate) fn print_data_all<T: NeatPrintable + Display + Saved>() { T::load_from_disk().print() }
 
 pub(crate) fn print_processing_individual() {
 	let rules = Rule::load_from_disk();
@@ -60,7 +63,7 @@ pub(crate) fn print_processing_individual() {
 		println!("There are currently no rules to trigger any processes.");
 	} else {
 		let purchases = Purchase::load_from_disk();
-		let possible_purchase = quick_find_purchase(purchases.iter());
+		let possible_purchase = Purchase::quick_find(purchases.iter());
 		println!();
 		if let Some(purchase) = possible_purchase {
 			let processing_steps = purchase.get_processing_steps(&rules);
