@@ -12,13 +12,13 @@ where
 pub(crate) trait UserCreate {
 	fn prompt_creation() -> Self;
 }
-impl UserCreate for IdentifierCollection {
-	fn prompt_creation() -> Self {
+impl TryUserCreate for IdentifierCollection {
+	fn try_prompt_creation() -> Option<Self> {
 		println!("Please provide some tags (separated by semicolon).");
 		let mut all_identifiers = IdentifierCollection::default();
 		// always start by adding
-		let add_reply = get_reply();
-		add_from_str(&mut all_identifiers, add_reply);
+		let add_reply = try_get_reply()?;
+		all_identifiers = add_from_str(all_identifiers, add_reply);
 		'review_modify_loop: loop {
 			println!(
 				"Identifiers: [{}]",
@@ -32,18 +32,18 @@ impl UserCreate for IdentifierCollection {
 			if get_yes_no_answer("Are you satisfied with the identifiers?") {
 				break 'review_modify_loop;
 			}
-			modify_identifiercollection_directly(&mut all_identifiers);
+			all_identifiers = try_modify_identifiercollection(all_identifiers)?;
 		}
-		all_identifiers
+		Some(all_identifiers)
 	}
 }
 
-impl UserCreate for Purchase {
-	fn prompt_creation() -> Self {
-		Purchase {
-			title:       Arc::from(prompt_question("Provide a title to the purchase.")),
-			identifiers: IdentifierCollection::prompt_creation()
-		}
+impl TryUserCreate for Purchase {
+	fn try_prompt_creation() -> Option<Self> {
+		Some(Purchase {
+			title:       Arc::from(try_prompt_question("Provide a title to the purchase.")?),
+			identifiers: IdentifierCollection::try_prompt_creation()?
+		})
 	}
 }
 impl TryUserCreate for Rule {
@@ -109,7 +109,7 @@ impl RuleTriggerSurface {
 				))
 			},
 			RuleTriggerSurface::Identifier => {
-				let identifiers = IdentifierCollection::prompt_creation();
+				let identifiers = IdentifierCollection::try_prompt_creation()?;
 				let condition = match identifiers.0.len() {
 					1 => {
 						println!("Condition of single identifier is set to 'Any' by default.");

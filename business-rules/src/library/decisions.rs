@@ -63,7 +63,7 @@ where
 		let chosen_action = 'input_loop: loop {
 			let reply = get_reply().to_uppercase();
 			for action in &self.possible_choices {
-				if reply.contains(action.answer.key) {
+				if reply.contains(&action.answer.key.to_uppercase()) {
 					break 'input_loop action;
 				}
 			}

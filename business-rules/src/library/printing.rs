@@ -9,6 +9,14 @@ use crate::library::{
 
 pub trait NeatPrintable {
 	fn print(&self);
+	fn type_name_pretty() -> &'static str {
+		let raw_name = type_name::<Self>();
+		if let Some(simplified_name) = raw_name.split("::").last() {
+			simplified_name
+		} else {
+			raw_name
+		}
+	}
 }
 impl NeatPrintable for Purchase {
 	fn print(&self) {
@@ -18,19 +26,6 @@ impl NeatPrintable for Purchase {
 impl NeatPrintable for Rule {
 	fn print(&self) {
 		println!("Rule:\n{}", self);
-	}
-}
-pub(crate) fn print_data_individual<T: NeatPrintable + for<'a> Searchable<'a> + Saved>() {
-	let all = T::load_from_disk();
-	let possible_item = T::quick_find(all.iter());
-	println!();
-	if let Some(item) = possible_item {
-		item.print();
-	} else {
-		println!(
-			"No {} with the provided specifications could be found.",
-			type_name::<T>()
-		);
 	}
 }
 
@@ -50,12 +45,11 @@ pub(crate) fn print_purchase_data_order() { Order::prompt_creation().print() }
 impl<T: Display> NeatPrintable for BTreeSet<T> {
 	fn print(&self) {
 		for (index, item) in self.iter().enumerate() {
-			println!("{} no. {}:\n{}", type_name::<T>(), index + 1, item);
+			println!("{} no. {}:\n{}", Self::type_name_pretty(), index + 1, item);
 			println!();
 		}
 	}
 }
-pub(crate) fn print_data_all<T: NeatPrintable + Display + Saved>() { T::load_from_disk().print() }
 
 pub(crate) fn print_processing_individual() {
 	let rules = Rule::load_from_disk();

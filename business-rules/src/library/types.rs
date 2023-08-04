@@ -34,10 +34,6 @@ impl Purchase {
 			.collect()
 	}
 
-	pub(crate) fn title_matches(&self, other_title: &str) -> bool {
-		self.title.to_lowercase().trim() == other_title.to_lowercase().trim()
-	}
-
 	pub(crate) fn has_identifier(&self, identifier: &Identifier) -> bool {
 		self.identifiers.0.contains(identifier)
 	}
@@ -108,7 +104,9 @@ impl RuleTrigger {
 		match self {
 			RuleTrigger::Never => false,
 			RuleTrigger::Always => true,
-			RuleTrigger::Title { name } => purchase.title_matches(name),
+			RuleTrigger::Title { name } => {
+				purchase.title.to_lowercase().trim() == name.to_lowercase().trim()
+			},
 			RuleTrigger::Identifier {
 				identifiers,
 				condition
@@ -159,6 +157,16 @@ impl Display for Rule {
 			self.trigger
 		)
 	}
+}
+
+pub trait Titled {
+	fn title(&self) -> &str;
+}
+impl Titled for Purchase {
+	fn title(&self) -> &str { self.title.as_ref() }
+}
+impl Titled for Rule {
+	fn title(&self) -> &str { self.title.as_ref() }
 }
 
 #[cfg(test)]

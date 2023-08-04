@@ -45,7 +45,10 @@ fn save_overwrite_path<T: Serialize>(data: T, path: &str) {
 	}
 }
 
-pub(crate) trait Saved {
+pub(crate) trait Saved
+where
+	Self: Ord + Clone
+{
 	fn load_from_disk() -> BTreeSet<Self>
 	where
 		Self: Sized;
@@ -87,7 +90,7 @@ impl Saved for Rule {
 		save_overwrite_path(set, RULE_DATA_PATH);
 	}
 }
-pub(crate) fn get_yes_no_answer<T: AsRef<str>>(question: T) -> bool {
+pub(crate) fn get_yes_no_answer(question: impl AsRef<str>) -> bool {
 	println!("{} (Y/N)", question.as_ref());
 	loop {
 		let reply = get_reply().to_lowercase();
