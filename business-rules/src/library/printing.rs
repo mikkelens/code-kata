@@ -1,6 +1,6 @@
 use std::{any::type_name, collections::BTreeSet, fmt::Display};
 
-use super::user_creation::UserCreate;
+use super::{user_creation::UserSelected, ApplicationData, PathFindable};
 use crate::library::{
 	io::Saved,
 	searching::Searchable,
@@ -41,7 +41,9 @@ impl NeatPrintable for Order {
 		}
 	}
 }
-pub(crate) fn print_purchase_data_order() { Order::prompt_creation().print() }
+pub(crate) fn print_purchase_data_order(data: &ApplicationData) {
+	Order::prompt_data_selection(data).print();
+}
 impl<T: Display> NeatPrintable for BTreeSet<T> {
 	fn print(&self) {
 		for (index, item) in self.iter().enumerate() {
@@ -51,12 +53,12 @@ impl<T: Display> NeatPrintable for BTreeSet<T> {
 	}
 }
 
-pub(crate) fn print_processing_individual() {
-	let rules = Rule::load_from_disk();
+pub(crate) fn print_processing_individual(data: &ApplicationData) {
+	let rules = Rule::load_from_disk(Rule::get_path(data));
 	if rules.is_empty() {
 		println!("There are currently no rules to trigger any processes.");
 	} else {
-		let purchases = Purchase::load_from_disk();
+		let purchases = Purchase::load_from_disk(Purchase::get_path(data));
 		let possible_purchase = Purchase::quick_find(purchases.iter());
 		println!();
 		if let Some(purchase) = possible_purchase {
@@ -78,13 +80,13 @@ pub(crate) fn print_processing_individual() {
 		}
 	}
 }
-pub(crate) fn print_processing_order() {
-	let order = Order::prompt_creation();
+pub(crate) fn print_processing_order(data: &ApplicationData) {
+	let order = Order::prompt_data_selection(data);
 	println!(); // post-user-entry spacing
 	if order.purchases.0.is_empty() {
 		println!("No purchases in order to print.");
 	} else {
-		let rules = Rule::load_from_disk();
+		let rules = Rule::load_from_disk(Rule::get_path(data));
 		if rules.is_empty() {
 			println!("There are currently no rules to trigger any processes.");
 		} else {
@@ -98,9 +100,9 @@ pub(crate) fn print_processing_order() {
 	}
 }
 
-pub(crate) fn print_processing_all() {
-	let all_purchases = Purchase::load_from_disk();
-	let rules = Rule::load_from_disk();
+pub(crate) fn print_processing_all(data: &ApplicationData) {
+	let all_purchases = Purchase::load_from_disk(Purchase::get_path(data));
+	let rules = Rule::load_from_disk(Rule::get_path(data));
 	if rules.is_empty() {
 		println!("There are currently no rules to trigger any processes.");
 	} else {

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{env, sync::Arc};
 
 mod library;
 
@@ -8,66 +8,87 @@ use library::{decisions::*, io::*, printing::*, searching::*, types::*, user_cre
 
 fn main() {
 	'program_loop: loop {
+		type DecisionFn = fn(&ApplicationData);
 		lazy_static! {
-			static ref DECISION: Decision<fn()> = Decision {
+			static ref DECISION: Decision<DecisionFn> = Decision {
 				possible_choices: vec![
 					(
 						("P", "Modify purchase data").into(),
-						Purchase::entry_action_decision as fn()
+						Purchase::entry_action_decision as DecisionFn
 					)
 						.into(),
 					(
 						("R", "Modify rule data").into(),
-						Rule::entry_action_decision as fn()
+						Rule::entry_action_decision as DecisionFn
 					)
 						.into(),
-					(("Q", "Query database").into(), query_database as fn()).into()
+					(("Q", "Query database").into(), query_database as DecisionFn).into()
 				],
 				cancel_answer: Answer::exit_answer(),
 				..Default::default()
 			};
 		}
 
+		// maybe this should be assigned somewhere, through env or something
+		let src_path: String = env::current_dir()
+			.expect("cannot get first env argument?")
+			.to_str()
+			.expect("could not convert path to string?")
+			.to_string();
+		let data = ApplicationData::from_src_path(src_path + "/src/");
+		assert!(
+			data.purchase_path.try_exists().unwrap_or(false),
+			"Purchase path not found?"
+		);
+		assert!(
+			data.rule_path.try_exists().unwrap_or(false),
+			"Rule path not found?"
+		);
+
 		println!("----- MAIN MENU -----");
 
 		if let Some(action) = DECISION.run_prompt() {
-			action();
+			action(&data);
 		} else {
 			break 'program_loop;
 		}
 	}
 }
 
-fn query_database() {
+fn query_database(data: &ApplicationData) {
 	lazy_static! {
-		static ref DECISION: Decision<fn()> = Decision {
+		static ref DECISION: Decision<PathDataFn> = Decision {
 			prompt: "What do you want to use the database for?".into(),
 			possible_choices: vec![(
 				("P", "Print processing information").into(),
-				print_processing_decision as fn()
+				print_processing_decision as PathDataFn
 			)
 				.into()],
 			..Default::default()
 		};
 	}
 	if let Some(action) = DECISION.run_prompt() {
-		action();
+		action(data);
 	}
 }
-fn print_processing_decision() {
+fn print_processing_decision(data: &ApplicationData) {
 	lazy_static! {
-		static ref DECISION: Decision<fn()> = Decision {
+		static ref DECISION: Decision<PathDataFn> = Decision {
 			prompt: "How much processing information do you want to print out?".into(),
 			possible_choices: vec![
-				(("A", "All purchases").into(), print_processing_all as fn()).into(),
+				(
+					("A", "All purchases").into(),
+					print_processing_all as PathDataFn
+				)
+					.into(),
 				(
 					("O", "Order of purchases").into(),
-					print_processing_order as fn()
+					print_processing_order as PathDataFn
 				)
 					.into(),
 				(
 					("I", "Individual purchase").into(),
-					print_processing_individual as fn()
+					print_processing_individual as PathDataFn
 				)
 					.into(),
 			],
@@ -75,7 +96,7 @@ fn print_processing_decision() {
 		};
 	}
 	if let Some(action) = DECISION.run_prompt() {
-		action();
+		action(data);
 	}
 }
 fn try_modify_purchase_title(mut purchase: Purchase) -> Option<Purchase> {

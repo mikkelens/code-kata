@@ -16,48 +16,51 @@ pub(crate) mod searching;
 pub(crate) mod types;
 pub(crate) mod user_creation;
 
+pub type PathDataFn = fn(&ApplicationData);
+
 pub(crate) trait DatabaseEntry:
-	NeatPrintable + Display + Saved + TryUserCreate + for<'a> Searchable<'a>
+	NeatPrintable + Display + PathFindable + Saved + TryUserCreate + for<'a> Searchable<'a>
 {
-	fn entry_action_decision() {
-		let decision: Decision<fn()> = Decision {
+	fn print_decision(data: &ApplicationData);
+	fn entry_action_decision(data: &ApplicationData) {
+		let decision: Decision<PathDataFn> = Decision {
 			prompt: "What do you want to modify in purchase data?".into(),
 			possible_choices: vec![
 				(
 					("A", "Add a new purchase entry").into(),
-					Self::add_entry as fn()
+					Self::add_entry as PathDataFn
 				)
 					.into(),
 				(
 					("M", "Modify an existing purchase entry").into(),
-					Self::modify_entry as fn()
+					Self::modify_entry as PathDataFn
 				)
 					.into(),
 				(
 					("D", "Delete an existing purchase entry").into(),
-					Self::delete_entry as fn()
+					Self::delete_entry as PathDataFn
 				)
 					.into(),
 				(
 					("P", "Print information about the data").into(),
-					Purchase::print_data as fn()
+					Purchase::print_decision as PathDataFn
 				)
 					.into(),
 			],
 			..Default::default()
 		};
 		if let Some(action) = decision.run_prompt() {
-			action();
+			action(data);
 		} else {
 			println!("Canceled entry action, returning...");
 		}
 	}
-	fn add_entry() {
+	fn add_entry(data: &ApplicationData) {
 		if let Some(new) = Self::try_prompt_creation() {
-			let mut all = Self::load_from_disk();
+			let mut all = Self::load_from_disk(Self::get_path(data));
 			println!();
 			if all.insert(new) {
-				Self::save_to_disk(all);
+				Self::save_to_disk(Self::get_path(data), all);
 				println!("Saved {} into its dataset.", Self::type_name_pretty());
 			} else {
 				println!(
@@ -70,8 +73,8 @@ pub(crate) trait DatabaseEntry:
 		}
 	}
 	fn try_ask_modify_type() -> Option<fn(Self) -> Option<Self>>;
-	fn modify_entry() {
-		let mut all = Self::load_from_disk();
+	fn modify_entry(data: &ApplicationData) {
+		let mut all = Self::load_from_disk(Self::get_path(data));
 		println!(
 			"In order to modify a {} we must first find it.",
 			Self::type_name_pretty().to_lowercase()
@@ -121,23 +124,23 @@ pub(crate) trait DatabaseEntry:
 					"Could not remove entry that we just found?"
 				);
 			}
-			Self::save_to_disk(all);
+			Self::save_to_disk(Self::get_path(data), all);
 		} else {
 			println!("Failed to find entry using this name.");
 		}
 	}
-	fn delete_entry() {
+	fn delete_entry(data: &ApplicationData) {
 		println!(
 			"In order to delete a {} we must first find it.",
 			Self::type_name_pretty()
 		);
-		let mut all = Self::load_from_disk();
+		let mut all = Self::load_from_disk(Self::get_path(data));
 		if let Some(found) = Self::quick_find(all.clone().iter()) {
 			let confirmation_question =
 				format!("Are you sure you want to delete...\n{}\n...?", found);
 			if get_yes_no_answer(confirmation_question) {
 				all.remove(found);
-				Self::save_to_disk(all);
+				Self::save_to_disk(Self::get_path(data), all);
 				println!("\n{} was removed from dataset.", Self::type_name_pretty());
 			} else {
 				println!("\n{} was kept in dataset.", Self::type_name_pretty());
@@ -149,9 +152,8 @@ pub(crate) trait DatabaseEntry:
 			);
 		}
 	}
-	fn print_data();
-	fn print_data_individual() {
-		let all = Self::load_from_disk();
+	fn print_data_individual(data: &ApplicationData) {
+		let all = Self::load_from_disk(Self::get_path(data));
 		let possible_item = Self::quick_find(all.iter());
 		println!();
 		if let Some(item) = possible_item {
@@ -163,28 +165,28 @@ pub(crate) trait DatabaseEntry:
 			);
 		}
 	}
-	fn print_data_all() { Self::load_from_disk().print() }
+	fn print_data_all(data: &ApplicationData) { Self::load_from_disk(Self::get_path(data)).print() }
 }
 
 impl DatabaseEntry for Purchase {
-	fn print_data() {
+	fn print_decision(data: &ApplicationData) {
 		lazy_static! {
-			static ref DECISION: Decision<fn()> = Decision {
+			static ref DECISION: Decision<PathDataFn> = Decision {
 				prompt: "What purchase data do you want to print out?".into(),
 				possible_choices: vec![
 					(
 						("A", "All of them").into(),
-						Purchase::print_data_all as fn()
+						Purchase::print_data_all as PathDataFn
 					)
 						.into(),
 					(
 						("O", "An order of them").into(),
-						print_purchase_data_order as fn()
+						print_purchase_data_order as PathDataFn
 					)
 						.into(),
 					(
 						("I", "Individual purchase").into(),
-						Purchase::print_data_individual as fn()
+						Purchase::print_data_individual as PathDataFn
 					)
 						.into(),
 				],
@@ -192,7 +194,7 @@ impl DatabaseEntry for Purchase {
 			};
 		}
 		if let Some(action) = DECISION.run_prompt() {
-			action();
+			action(data);
 		}
 	}
 
@@ -220,15 +222,19 @@ impl DatabaseEntry for Purchase {
 	}
 }
 impl DatabaseEntry for Rule {
-	fn print_data() {
+	fn print_decision(data: &ApplicationData) {
 		lazy_static! {
-			static ref DECISION: Decision<fn()> = Decision {
+			static ref DECISION: Decision<PathDataFn> = Decision {
 				prompt: "What rule data do you want to print out?".into(),
 				possible_choices: vec![
-					(("A", "All of them").into(), Rule::print_data_all as fn()).into(),
+					(
+						("A", "All of them").into(),
+						Rule::print_data_all as PathDataFn
+					)
+						.into(),
 					(
 						("I", "Individual rule").into(),
-						Rule::print_data_individual as fn()
+						Rule::print_data_individual as PathDataFn
 					)
 						.into(),
 				],
@@ -236,7 +242,7 @@ impl DatabaseEntry for Rule {
 			};
 		}
 		if let Some(action) = DECISION.run_prompt() {
-			action();
+			action(data);
 		}
 	}
 

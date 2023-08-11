@@ -42,6 +42,7 @@ impl Purchase {
 		self.identifiers.0.iter().collect()
 	}
 }
+
 impl Display for Purchase {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(

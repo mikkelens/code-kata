@@ -3,7 +3,9 @@ use std::{
 	collections::BTreeSet,
 	fs,
 	fs::read_to_string,
-	io::{stdin, stdout, Write}
+	io,
+	io::{stdin, stdout, Write},
+	path::{Path, PathBuf}
 };
 
 use serde::{de::DeserializeOwned, Serialize};
@@ -11,16 +13,41 @@ use serde_json::{from_str, to_string_pretty};
 
 use super::types::{Purchase, Rule};
 
-fn load_set<T: DeserializeOwned + Default>(path: &str) -> T {
+#[derive(Debug)]
+pub struct ApplicationData {
+	pub purchase_path: PathBuf,
+	pub rule_path:     PathBuf
+}
+impl ApplicationData {
+	pub fn from_src_path(path: impl AsRef<str>) -> ApplicationData {
+		let src_path = path.as_ref();
+		ApplicationData {
+			purchase_path: (String::from(src_path) + "all_purchases.json").into(),
+			rule_path:     (String::from(src_path) + "all_rules.json").into()
+		}
+	}
+}
+
+pub trait PathFindable {
+	fn get_path(data: &ApplicationData) -> &Path;
+}
+impl PathFindable for Purchase {
+	fn get_path(data: &ApplicationData) -> &Path { data.purchase_path.as_path() }
+}
+impl PathFindable for Rule {
+	fn get_path(data: &ApplicationData) -> &Path { data.rule_path.as_path() }
+}
+
+fn load_set<T: DeserializeOwned + Default>(path: &Path) -> io::Result<T> {
 	'reading: loop {
-		let data_string: String = read_to_string(path).expect("could not read from file");
+		let data_string: String = read_to_string(path)?;
 		if data_string.is_empty() {
-			break 'reading T::default();
+			break 'reading Ok(T::default());
 		} else if let Ok(data) = from_str(data_string.as_str()) {
-			break 'reading data;
+			break 'reading Ok(data);
 		}
 		println!(
-			"Could not parse data as {} from path '{}'",
+			"Could not parse data as {} from path '{:?}'",
 			type_name::<T>(),
 			path
 		);
@@ -28,12 +55,12 @@ fn load_set<T: DeserializeOwned + Default>(path: &str) -> T {
 		let _ = read_line();
 	}
 }
-fn save_overwrite_path<T: Serialize>(data: T, path: &str) {
+fn save_overwrite_path<T: Serialize>(data: T, path: &Path) {
 	let data_string = to_string_pretty(&data).expect("should always be able to parse");
 	'write: loop {
 		if fs::write(path, data_string.clone()).is_err() {
 			println!(
-				"Could not write data as {} to path '{}'.",
+				"Could not write data as {} to path '{:?}'.",
 				type_name::<T>(),
 				path
 			);
@@ -49,45 +76,41 @@ pub(crate) trait Saved
 where
 	Self: Ord + Clone
 {
-	fn load_from_disk() -> BTreeSet<Self>
+	fn load_from_disk(path: &Path) -> BTreeSet<Self>
 	where
 		Self: Sized;
-	fn save_to_disk(set: BTreeSet<Self>)
+	fn save_to_disk(path: &Path, set: BTreeSet<Self>)
 	where
 		Self: Sized;
 }
-const PURCHASE_DATA_PATH: &str =
-	r"C:\Users\mikke\Desktop\repos\rust\code-kata\business-rules\src\all_purchases.json";
 impl Saved for Purchase {
-	fn load_from_disk() -> BTreeSet<Self>
+	fn load_from_disk(path: &Path) -> BTreeSet<Self>
 	where
 		Self: Sized
 	{
-		load_set(PURCHASE_DATA_PATH)
+		load_set(path).unwrap_or_else(|_| panic!("Failed to load '{:?}'", path))
 	}
 
-	fn save_to_disk(set: BTreeSet<Self>)
+	fn save_to_disk(path: &Path, set: BTreeSet<Self>)
 	where
 		Self: Sized
 	{
-		save_overwrite_path(set, PURCHASE_DATA_PATH);
+		save_overwrite_path(set, path);
 	}
 }
-const RULE_DATA_PATH: &str =
-	r"C:\Users\mikke\Desktop\repos\rust\code-kata\business-rules\src\all_rules.json";
 impl Saved for Rule {
-	fn load_from_disk() -> BTreeSet<Self>
+	fn load_from_disk(path: &Path) -> BTreeSet<Self>
 	where
 		Self: Sized
 	{
-		load_set(RULE_DATA_PATH)
+		load_set(path).unwrap_or_else(|_| panic!("Failed to load '{:?}'", path))
 	}
 
-	fn save_to_disk(set: BTreeSet<Self>)
+	fn save_to_disk(path: &Path, set: BTreeSet<Self>)
 	where
 		Self: Sized
 	{
-		save_overwrite_path(set, RULE_DATA_PATH);
+		save_overwrite_path(set, path);
 	}
 }
 pub(crate) fn get_yes_no_answer(question: impl AsRef<str>) -> bool {

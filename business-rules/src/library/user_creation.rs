@@ -9,9 +9,6 @@ where
 {
 	fn try_prompt_creation() -> Option<Self>;
 }
-pub(crate) trait UserCreate {
-	fn prompt_creation() -> Self;
-}
 impl TryUserCreate for IdentifierCollection {
 	fn try_prompt_creation() -> Option<Self> {
 		println!("Please provide some tags (separated by semicolon).");
@@ -57,10 +54,14 @@ impl TryUserCreate for Rule {
 		})
 	}
 }
-impl UserCreate for Order {
-	fn prompt_creation() -> Self {
+
+pub(crate) trait UserSelected {
+	fn prompt_data_selection(data: &ApplicationData) -> Self;
+}
+impl UserSelected for Order {
+	fn prompt_data_selection(data: &ApplicationData) -> Self {
 		let purchases = {
-			let all_purchases = Purchase::load_from_disk();
+			let all_purchases = Purchase::load_from_disk(Purchase::get_path(data));
 			let mut purchases = PurchaseCollection(BTreeMap::new());
 			'purchase_add_loop: loop {
 				println!("--- Purchase {} ---", purchases.0.values().sum::<usize>());
