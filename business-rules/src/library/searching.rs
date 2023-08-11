@@ -127,10 +127,10 @@ impl<'a> Searchable<'a> for Rule {
 			let selected_match = 'index_request_loop: loop {
 				let reply = get_reply();
 				let Ok(unsigned_int_reply) = reply.trim().parse::<usize>() else {
-				println!("Reply was not an unsigned integer.");
-				println!("Try again.");
-				continue 'index_request_loop;
-			};
+					println!("Reply was not an unsigned integer.");
+					println!("Try again.");
+					continue 'index_request_loop;
+				};
 				if unsigned_int_reply >= found_matches.len() {
 					println!("Reply index was not inside the range of the found matches.");
 					println!("Try again.");
