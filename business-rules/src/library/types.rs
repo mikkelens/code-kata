@@ -160,14 +160,17 @@ impl Display for Rule {
 	}
 }
 
-pub trait Titled {
-	fn title(&self) -> &str;
+pub trait Named {
+	fn name(&self) -> &str;
 }
-impl Titled for Purchase {
-	fn title(&self) -> &str { self.title.as_ref() }
+impl Named for Purchase {
+	fn name(&self) -> &str { self.title.as_ref() }
 }
-impl Titled for Rule {
-	fn title(&self) -> &str { self.title.as_ref() }
+impl Named for Rule {
+	fn name(&self) -> &str { self.title.as_ref() }
+}
+impl Named for Identifier {
+	fn name(&self) -> &str { &self.0 }
 }
 
 #[cfg(test)]

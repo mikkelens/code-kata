@@ -67,7 +67,7 @@ impl UserSelected for Order {
 			'purchase_add_loop: loop {
 				println!("--- Purchase {} ---", purchases.0.values().sum::<usize>());
 				let new_purchase = 'purchase_find_loop: loop {
-					if let Some(purchase) = Purchase::try_quick_find(all_purchases.iter()) {
+					if let Some(purchase) = Purchase::try_find_single(all_purchases.iter()) {
 						break 'purchase_find_loop purchase;
 					}
 					if !prompt_yes_no_question(

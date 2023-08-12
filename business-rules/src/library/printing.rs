@@ -63,7 +63,7 @@ pub(crate) fn print_processing_individual(data: &ApplicationData) {
 		let Ok(purchases) = Purchase::load_from_disk_retrying(Purchase::get_path(data)) else {
 			return;
 		};
-		let possible_purchase = Purchase::try_quick_find(purchases.iter());
+		let possible_purchase = Purchase::try_find_single(purchases.iter());
 		println!();
 		if let Some(purchase) = possible_purchase {
 			let processing_steps = purchase.get_processing_steps(&rules);

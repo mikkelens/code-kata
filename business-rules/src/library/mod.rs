@@ -84,7 +84,7 @@ pub(crate) trait DatabaseEntry:
 			"In order to modify a {} we must first find it.",
 			Self::type_name_pretty().to_lowercase()
 		);
-		if let Some(found) = Self::try_quick_find(all.clone().iter()) {
+		if let Some(found) = Self::try_find_single(all.clone().iter()) {
 			println!(
 				"Modifying {}:\n{}",
 				Self::type_name_pretty().to_lowercase(),
@@ -145,7 +145,7 @@ pub(crate) trait DatabaseEntry:
 		let Ok(mut all) = Self::load_from_disk_retrying(Self::get_path(data)) else {
 			return;
 		};
-		if let Some(found) = Self::try_quick_find(all.clone().iter()) {
+		if let Some(found) = Self::try_find_single(all.clone().iter()) {
 			let confirmation_question =
 				format!("Are you sure you want to delete...\n{}\n...?", found);
 			if prompt_yes_no_question(confirmation_question) {
@@ -167,7 +167,7 @@ pub(crate) trait DatabaseEntry:
 		let Ok(all) = Self::load_from_disk_retrying(Self::get_path(data)) else {
 			return;
 		};
-		let possible_item = Self::try_quick_find(all.iter());
+		let possible_item = Self::try_find_single(all.iter());
 		println!();
 		if let Some(item) = possible_item {
 			item.print();
