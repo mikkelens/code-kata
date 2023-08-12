@@ -57,11 +57,14 @@ pub(crate) trait DatabaseEntry:
 	}
 	fn add_entry(data: &ApplicationData) {
 		if let Some(new) = Self::try_prompt_creation() {
-			let mut all = Self::load_from_disk(Self::get_path(data));
+			let Ok(mut all) = Self::load_from_disk_retrying(Self::get_path(data)) else {
+				return;
+			};
 			println!();
 			if all.insert(new) {
-				Self::save_to_disk(Self::get_path(data), all);
-				println!("Saved {} into its dataset.", Self::type_name_pretty());
+				if Self::save_to_disk_retrying(Self::get_path(data), all).is_ok() {
+					println!("Saved {} into its dataset.", Self::type_name_pretty());
+				}
 			} else {
 				println!(
 					"This exact {} already exists in its dataset, skipping saving.",
@@ -72,14 +75,16 @@ pub(crate) trait DatabaseEntry:
 			println!("Failed to create entry.");
 		}
 	}
-	fn try_ask_modify_type() -> Option<fn(Self) -> Option<Self>>;
+	fn try_ask_modify_fn() -> Option<fn(Self) -> Option<Self>>;
 	fn modify_entry(data: &ApplicationData) {
-		let mut all = Self::load_from_disk(Self::get_path(data));
+		let Ok(mut all) = Self::load_from_disk_retrying(Self::get_path(data)) else {
+			return;
+		};
 		println!(
 			"In order to modify a {} we must first find it.",
 			Self::type_name_pretty().to_lowercase()
 		);
-		if let Some(found) = Self::quick_find(all.clone().iter()) {
+		if let Some(found) = Self::try_quick_find(all.clone().iter()) {
 			println!(
 				"Modifying {}:\n{}",
 				Self::type_name_pretty().to_lowercase(),
@@ -87,11 +92,11 @@ pub(crate) trait DatabaseEntry:
 			);
 			let mut entry_modified = found.clone();
 			'modify_loop: loop {
-				if let Some(modifying_fn) = Self::try_ask_modify_type() {
+				if let Some(modifying_fn) = Self::try_ask_modify_fn() {
 					println!();
 					if let Some(modified_entry) = modifying_fn(entry_modified.clone()) {
 						entry_modified = modified_entry;
-						if get_yes_no_answer(format!(
+						if prompt_yes_no_question(format!(
 							"Are you satisfied with the changes made to the {}?\n{}",
 							Self::type_name_pretty().to_lowercase(),
 							entry_modified
@@ -103,7 +108,8 @@ pub(crate) trait DatabaseEntry:
 						if *found == entry_modified {
 							println!("No modifications were made, returning...");
 							return;
-						} else if !get_yes_no_answer("Do you want to make more modifications?") {
+						} else if !prompt_yes_no_question("Do you want to make more modifications?")
+						{
 							break 'modify_loop;
 						}
 					}
@@ -114,7 +120,7 @@ pub(crate) trait DatabaseEntry:
 			}
 			// todo: account for what happens when you modify something and then unmodify it
 			if all.insert(entry_modified)
-				|| get_yes_no_answer(
+				|| prompt_yes_no_question(
 					"Database already contained this exact new value. Do you still want to delete \
 					 the old value?"
 				) {
@@ -124,7 +130,9 @@ pub(crate) trait DatabaseEntry:
 					"Could not remove entry that we just found?"
 				);
 			}
-			Self::save_to_disk(Self::get_path(data), all);
+			if Self::save_to_disk_retrying(Self::get_path(data), all).is_ok() {
+				println!("Saved modification to disk.");
+			}
 		} else {
 			println!("Failed to find entry using this name.");
 		}
@@ -134,14 +142,17 @@ pub(crate) trait DatabaseEntry:
 			"In order to delete a {} we must first find it.",
 			Self::type_name_pretty()
 		);
-		let mut all = Self::load_from_disk(Self::get_path(data));
-		if let Some(found) = Self::quick_find(all.clone().iter()) {
+		let Ok(mut all) = Self::load_from_disk_retrying(Self::get_path(data)) else {
+			return;
+		};
+		if let Some(found) = Self::try_quick_find(all.clone().iter()) {
 			let confirmation_question =
 				format!("Are you sure you want to delete...\n{}\n...?", found);
-			if get_yes_no_answer(confirmation_question) {
+			if prompt_yes_no_question(confirmation_question) {
 				all.remove(found);
-				Self::save_to_disk(Self::get_path(data), all);
-				println!("\n{} was removed from dataset.", Self::type_name_pretty());
+				if Self::save_to_disk_retrying(Self::get_path(data), all).is_ok() {
+					println!("\n{} was removed from dataset.", Self::type_name_pretty());
+				}
 			} else {
 				println!("\n{} was kept in dataset.", Self::type_name_pretty());
 			}
@@ -153,8 +164,10 @@ pub(crate) trait DatabaseEntry:
 		}
 	}
 	fn print_data_individual(data: &ApplicationData) {
-		let all = Self::load_from_disk(Self::get_path(data));
-		let possible_item = Self::quick_find(all.iter());
+		let Ok(all) = Self::load_from_disk_retrying(Self::get_path(data)) else {
+			return;
+		};
+		let possible_item = Self::try_quick_find(all.iter());
 		println!();
 		if let Some(item) = possible_item {
 			item.print();
@@ -165,7 +178,12 @@ pub(crate) trait DatabaseEntry:
 			);
 		}
 	}
-	fn print_data_all(data: &ApplicationData) { Self::load_from_disk(Self::get_path(data)).print() }
+	fn print_data_all(data: &ApplicationData) {
+		let Ok(all) = Self::load_from_disk_retrying(Self::get_path(data)) else {
+			return;
+		};
+		all.print();
+	}
 }
 
 impl DatabaseEntry for Purchase {
@@ -198,7 +216,7 @@ impl DatabaseEntry for Purchase {
 		}
 	}
 
-	fn try_ask_modify_type() -> Option<fn(Self) -> Option<Self>> {
+	fn try_ask_modify_fn() -> Option<fn(Self) -> Option<Self>> {
 		type FnType = fn(Purchase) -> Option<Purchase>;
 		lazy_static! {
 			static ref DECISION: Decision<FnType> = Decision {
@@ -246,7 +264,7 @@ impl DatabaseEntry for Rule {
 		}
 	}
 
-	fn try_ask_modify_type() -> Option<fn(Self) -> Option<Self>> {
+	fn try_ask_modify_fn() -> Option<fn(Self) -> Option<Self>> {
 		type FnType = fn(Rule) -> Option<Rule>;
 		lazy_static! {
 			static ref DECISION: Decision<FnType> = Decision {

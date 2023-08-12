@@ -26,7 +26,7 @@ impl TryUserCreate for IdentifierCollection {
 					.collect::<Vec<_>>()
 					.join(", ")
 			);
-			if get_yes_no_answer("Are you satisfied with the identifiers?") {
+			if prompt_yes_no_question("Are you satisfied with the identifiers?") {
 				break 'review_modify_loop;
 			}
 			all_identifiers = try_modify_identifiercollection(all_identifiers)?;
@@ -61,15 +61,16 @@ pub(crate) trait UserSelected {
 impl UserSelected for Order {
 	fn prompt_data_selection(data: &ApplicationData) -> Self {
 		let purchases = {
-			let all_purchases = Purchase::load_from_disk(Purchase::get_path(data));
+			let all_purchases =
+				Purchase::load_from_disk_retrying(Purchase::get_path(data)).unwrap(); // TODO: make function visibly fallible
 			let mut purchases = PurchaseCollection(BTreeMap::new());
 			'purchase_add_loop: loop {
 				println!("--- Purchase {} ---", purchases.0.values().sum::<usize>());
 				let new_purchase = 'purchase_find_loop: loop {
-					if let Some(purchase) = Purchase::quick_find(all_purchases.iter()) {
+					if let Some(purchase) = Purchase::try_quick_find(all_purchases.iter()) {
 						break 'purchase_find_loop purchase;
 					}
-					if !get_yes_no_answer(
+					if !prompt_yes_no_question(
 						"Failed to find valid purchase. Do you want to try again?"
 					) {
 						break 'purchase_add_loop;
@@ -81,7 +82,7 @@ impl UserSelected for Order {
 					.and_modify(|count| *count += 1)
 					.or_insert(1);
 				println!("Purchase added to order.");
-				if !get_yes_no_answer("Do you want to add another purchase to this order?") {
+				if !prompt_yes_no_question("Do you want to add another purchase to this order?") {
 					break 'purchase_add_loop;
 				}
 			}

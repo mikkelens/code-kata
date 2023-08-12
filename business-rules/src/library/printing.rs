@@ -54,12 +54,16 @@ impl<T: Display> NeatPrintable for BTreeSet<T> {
 }
 
 pub(crate) fn print_processing_individual(data: &ApplicationData) {
-	let rules = Rule::load_from_disk(Rule::get_path(data));
+	let Ok(rules) = Rule::load_from_disk_retrying(Rule::get_path(data)) else {
+		return;
+	};
 	if rules.is_empty() {
 		println!("There are currently no rules to trigger any processes.");
 	} else {
-		let purchases = Purchase::load_from_disk(Purchase::get_path(data));
-		let possible_purchase = Purchase::quick_find(purchases.iter());
+		let Ok(purchases) = Purchase::load_from_disk_retrying(Purchase::get_path(data)) else {
+			return;
+		};
+		let possible_purchase = Purchase::try_quick_find(purchases.iter());
 		println!();
 		if let Some(purchase) = possible_purchase {
 			let processing_steps = purchase.get_processing_steps(&rules);
@@ -86,7 +90,10 @@ pub(crate) fn print_processing_order(data: &ApplicationData) {
 	if order.purchases.0.is_empty() {
 		println!("No purchases in order to print.");
 	} else {
-		let rules = Rule::load_from_disk(Rule::get_path(data));
+		let Ok(rules) = Rule::load_from_disk_retrying(Rule::get_path(data)) else {
+			return;
+		};
+
 		if rules.is_empty() {
 			println!("There are currently no rules to trigger any processes.");
 		} else {
@@ -101,8 +108,12 @@ pub(crate) fn print_processing_order(data: &ApplicationData) {
 }
 
 pub(crate) fn print_processing_all(data: &ApplicationData) {
-	let all_purchases = Purchase::load_from_disk(Purchase::get_path(data));
-	let rules = Rule::load_from_disk(Rule::get_path(data));
+	let Ok(all_purchases) = Purchase::load_from_disk_retrying(Purchase::get_path(data)) else {
+		return;
+	};
+	let Ok(rules) = Rule::load_from_disk_retrying(Rule::get_path(data)) else {
+		return;
+	};
 	if rules.is_empty() {
 		println!("There are currently no rules to trigger any processes.");
 	} else {

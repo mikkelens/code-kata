@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use super::{
-	io::{prompt_question, try_prompt_question},
+	io::try_prompt_question,
 	printing::NeatPrintable,
 	types::{Purchase, Rule, Titled}
 };
@@ -11,26 +11,28 @@ pub trait Searchable<'a>
 where
 	Self: 'a + Sized + Titled + NeatPrintable
 {
-	fn quick_find(data: impl Iterator<Item = &'a Self>) -> Option<&'a Self>;
-}
-
-impl<'a> Searchable<'a> for Purchase {
-	fn quick_find(data: impl Iterator<Item = &'a Self>) -> Option<&'a Self> {
+	fn try_quick_find(data: impl Iterator<Item = &'a Self>) -> Option<&'a Self> {
 		let title = try_prompt_question(format!(
 			"What is the title of the {}?",
 			Self::type_name_pretty().to_lowercase()
 		))?
 		.to_lowercase();
-		let title = title.trim();
-		let mut found_matches: Vec<&Self> = data
-			.filter(|purchase| purchase.title.to_lowercase().contains(title))
-			.collect();
+		let data_title_filtered =
+			data.filter(|searchable| searchable.title().to_lowercase().contains(title.trim()));
+		Self::find_specific(data_title_filtered, title.as_ref())
+	}
+	fn find_specific(data: impl Iterator<Item = &'a Self>, title: &str) -> Option<&'a Self>;
+}
+
+impl<'a> Searchable<'a> for Purchase {
+	fn find_specific(data: impl Iterator<Item = &'a Self>, title: &str) -> Option<&'a Self> {
+		let mut found_matches: Vec<&Self> = data.collect();
 		match found_matches.len() {
 			0 => None,
 			1 => Some(found_matches.remove(0)),
 			_ => {
-				println!(
-					"Multiple {} contained this in their title, looking for exact match...",
+				print!(
+					"Multiple {} contained this in their title... ",
 					Self::type_name_pretty().to_lowercase()
 				);
 				let exact_matches: Vec<&Purchase> = found_matches
@@ -52,15 +54,14 @@ impl<'a> Searchable<'a> for Purchase {
 						}
 						println!("We must narrow our search using identifiers.");
 						println!(
-							"Identifiers present for {}s with this name:",
+							"Identifiers present for {} in search:",
 							Self::type_name_pretty().to_lowercase()
 						);
-
 						'tag_narrow_loop: loop {
 							let unique_tags: BTreeSet<&Identifier> = found_matches
 								.iter()
 								.flat_map(|purchase| purchase.get_all_ídentifiers()) // iter of vecs to vec
-								.collect(); // unique
+								.collect(); // set -> vec, means unique
 							println!(
 								"[{}] (unordered)",
 								unique_tags
@@ -79,7 +80,7 @@ impl<'a> Searchable<'a> for Purchase {
 									println!(
 										"Identifier was not found in the collection of matches."
 									);
-									println!("Try again.");
+
 									continue 'tag_specify_loop;
 								}
 								found_matches
@@ -108,12 +109,8 @@ impl<'a> Searchable<'a> for Purchase {
 	}
 }
 impl<'a> Searchable<'a> for Rule {
-	fn quick_find(data: impl Iterator<Item = &'a Self>) -> Option<&'a Self> {
-		let title = prompt_question("What is the title of the rule?");
-		// first try title direct match
-		let mut found_matches: Vec<&Rule> = data
-			.filter(|purchase| purchase.title.as_ref() == title)
-			.collect();
+	fn find_specific(data: impl Iterator<Item = &'a Self>, _title: &str) -> Option<&'a Self> {
+		let mut found_matches: Vec<&Rule> = data.collect();
 		if found_matches.is_empty() {
 			None
 		} else if found_matches.len() == 1 {
