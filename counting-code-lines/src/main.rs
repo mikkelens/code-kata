@@ -45,8 +45,7 @@ fn main() {
 		println!("No args were provided, exiting (hint: give a relative or absolute path)");
 		return;
 	}
-
-	println!("All args: {}", all_args.join(", "));
+	eprintln!("All args: {}", all_args.join(", "));
 
 	let mut command_settings_map: HashMap<&'static str, Vec<String>> = HashMap::from([
 		(
@@ -62,10 +61,11 @@ fn main() {
 	'arg_loop: for arg in &all_args {
 		const LOCAL_COMMAND_ARG: &str = "--";
 		const LOCAL_COMMAND_DIVIDER: char = '=';
+		const LOCAL_COMMAND_SEPARATOR: char = ';';
 		let arg_after_command_trim = arg.trim_start_matches(LOCAL_COMMAND_ARG);
 		let is_command = arg_after_command_trim != arg;
 		if is_command {
-			println!("Interpreting command '{}'...", arg_after_command_trim);
+			eprintln!("Interpreting command '{}'...", arg_after_command_trim);
 			let command_str = arg_after_command_trim.to_lowercase();
 			let command_split = command_str.split_once(LOCAL_COMMAND_DIVIDER);
 			let Some((command_type_str, command_val_str)) = command_split else {
@@ -73,17 +73,23 @@ fn main() {
 					"Tried parsing argument '{}' as command, failed to see assignment (=).",
 					arg
 				);
-				continue;
+				continue 'arg_loop;
 			};
 
 			if let Some(command_key) = COMMANDS.get_key(command_type_str) {
 				match command_key {
 					&ANALYSIS_TYPE_KEY => {},
 					&IGNORE_DIR_KEY | &FILE_TYPE_KEY => {
-						command_settings_map
-							.get_mut(command_key)
-							.unwrap()
-							.push(command_val_str.to_string());
+						let command_info = command_settings_map.get_mut(command_key).unwrap();
+						if command_val_str.contains(LOCAL_COMMAND_SEPARATOR) {
+							let mut other: Vec<String> = command_val_str
+								.split(LOCAL_COMMAND_SEPARATOR)
+								.map(str::to_string)
+								.collect();
+							command_info.append(&mut other);
+						} else {
+							command_info.push(command_val_str.to_string());
+						}
 					},
 					_ => {
 						println!(
@@ -115,10 +121,10 @@ fn main() {
 				.unwrap_or_default();
 			if analysis.contains(&"descriptive".to_string()) {
 				analyze_path_recursive(&arg_path, &i_d_map, &f_t_map);
-				println!("\nProgram finished.");
+				println!("Program finished.");
 			} else {
 				let lines = count_lines_path_recursive(&arg_path, &i_d_map, &f_t_map);
-				println!("\nProgram finished. Total lines counted: {}", lines);
+				println!("Program finished. Total lines counted: {}", lines);
 			}
 		}
 	}
@@ -134,7 +140,6 @@ fn count_lines_path_recursive(
 		if let Some(dir_name_os_str) = dir_path.file_name() {
 			if let Some(dir_name) = dir_name_os_str.to_str() {
 				if !ignored_dirs.contains(&dir_name.to_lowercase()) {
-					// println!("Ignoring directory '{}'...", dir_name);
 					let Ok(paths) = fs::read_dir(dir_path) else {
 						eprintln!("{} could not be read as a directory.", dir_path.display());
 						return 0;
