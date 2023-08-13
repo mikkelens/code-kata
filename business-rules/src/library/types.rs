@@ -37,10 +37,6 @@ impl Purchase {
 	pub(crate) fn has_identifier(&self, identifier: &Identifier) -> bool {
 		self.identifiers.0.contains(identifier)
 	}
-
-	pub(crate) fn get_all_ídentifiers(&self) -> Vec<&Identifier> {
-		self.identifiers.0.iter().collect()
-	}
 }
 
 impl Display for Purchase {

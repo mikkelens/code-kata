@@ -151,14 +151,14 @@ pub(crate) trait DatabaseEntry:
 			if prompt_yes_no_question(confirmation_question) {
 				all.remove(found);
 				if Self::save_to_disk_retrying(Self::get_path(data), all).is_ok() {
-					println!("\n{} was removed from dataset.", Self::type_name_pretty());
+					println!("{} was removed from dataset.", Self::type_name_pretty());
 				}
 			} else {
-				println!("\n{} was kept in dataset.", Self::type_name_pretty());
+				println!("{} was kept in dataset.", Self::type_name_pretty());
 			}
 		} else {
 			println!(
-				"\nNo {} with the provided specifications could be found.",
+				"No {} with the provided specifications could be found.",
 				Self::type_name_pretty()
 			);
 		}
@@ -167,9 +167,8 @@ pub(crate) trait DatabaseEntry:
 		let Ok(all) = Self::load_from_disk_retrying(Self::get_path(data)) else {
 			return;
 		};
-		let possible_item = Self::try_find_single(all.iter());
 		println!();
-		if let Some(item) = possible_item {
+		if let Some(item) = Self::try_find_single(all.iter()) {
 			item.print();
 		} else {
 			println!(

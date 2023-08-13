@@ -13,12 +13,12 @@ fn main() {
 			static ref DECISION: Decision<DecisionFn> = Decision {
 				possible_choices: vec![
 					(
-						("P", "Modify purchase data").into(),
+						("P", "View purchase data").into(),
 						Purchase::entry_action_decision as DecisionFn
 					)
 						.into(),
 					(
-						("R", "Modify rule data").into(),
+						("R", "View rule data").into(),
 						Rule::entry_action_decision as DecisionFn
 					)
 						.into(),
