@@ -25,9 +25,10 @@ const ENV_VAR_SPLIT: char = ';';
 fn load_command_env_variables(command: &CommandInfo) -> Option<Vec<String>> {
 	let command_var = env::var(command.env_var);
 	let Ok(var_str) = command_var else {
-        // eprintln!("Could not find {} using enviromental variable '{}'", command.description, command.env_var);
-        return None;
-    };
+		// eprintln!("Could not find {} using enviromental variable '{}'",
+		// command.description, command.env_var);
+		return None;
+	};
 	let loaded: Vec<String> = var_str
 		.split(ENV_VAR_SPLIT)
 		.map(|value| value.trim().to_string())
@@ -61,36 +62,38 @@ fn main() {
 	'arg_loop: for arg in &all_args {
 		const LOCAL_COMMAND_ARG: &str = "--";
 		const LOCAL_COMMAND_DIVIDER: char = '=';
-		let command_trim = arg.trim_start_matches(LOCAL_COMMAND_ARG);
-		let is_command = command_trim != arg;
+		let arg_after_command_trim = arg.trim_start_matches(LOCAL_COMMAND_ARG);
+		let is_command = arg_after_command_trim != arg;
 		if is_command {
-			let command_str = command_trim.to_lowercase();
+			println!("Interpreting command '{}'...", arg_after_command_trim);
+			let command_str = arg_after_command_trim.to_lowercase();
 			let command_split = command_str.split_once(LOCAL_COMMAND_DIVIDER);
 			let Some((command_type_str, command_val_str)) = command_split else {
-                eprintln!("Tried parsing argument '{}' as command, failed to see assignment (=).", arg);
-                continue;
-            };
+				println!(
+					"Tried parsing argument '{}' as command, failed to see assignment (=).",
+					arg
+				);
+				continue;
+			};
 
-			for (name, _info) in COMMANDS.entries() {
-				if name == &ANALYSIS_TYPE_KEY {
-					continue 'arg_loop;
-				}
-				if command_type_str.contains(name) {
-					command_settings_map
-						.get_mut(name)
-						.unwrap()
-						.push(command_val_str.to_string());
-					// println!("Added {} values '{}' to {} settings: [{}]",
-					// name, command_val_str, info.description,
-					// command_settings_map.get(name).unwrap().join(", "));
-					continue 'arg_loop;
+			if let Some(command_key) = COMMANDS.get_key(command_type_str) {
+				match command_key {
+					&ANALYSIS_TYPE_KEY => {},
+					&IGNORE_DIR_KEY | &FILE_TYPE_KEY => {
+						command_settings_map
+							.get_mut(command_key)
+							.unwrap()
+							.push(command_val_str.to_string());
+					},
+					_ => {
+						println!(
+							"Did not understand command '{}' (value [{}]).",
+							command_type_str, command_val_str
+						);
+						continue 'arg_loop;
+					}
 				}
 			}
-
-			eprintln!(
-				"Did not understand command '{}' (value [{}]).",
-				command_type_str, command_val_str
-			);
 		} else {
 			let arg_path = dir.join(arg);
 			let ignored_dirs = command_settings_map.get(IGNORE_DIR_KEY).unwrap().clone();
@@ -133,16 +136,19 @@ fn count_lines_path_recursive(
 				if !ignored_dirs.contains(&dir_name.to_lowercase()) {
 					// println!("Ignoring directory '{}'...", dir_name);
 					let Ok(paths) = fs::read_dir(dir_path) else {
-                        eprintln!("{} could not be read as a directory.", dir_path.display());
-                        return 0;
-                    };
+						eprintln!("{} could not be read as a directory.", dir_path.display());
+						return 0;
+					};
 
 					let mut lines = 0;
 					for dir_entry_fallible in paths {
 						let Ok(dir_entry) = dir_entry_fallible else {
-                            eprintln!("Could not use dir_entry: {}", dir_entry_fallible.unwrap_err());
-                            continue;
-                        };
+							eprintln!(
+								"Could not use dir_entry: {}",
+								dir_entry_fallible.unwrap_err()
+							);
+							continue;
+						};
 						let path = dir_entry.path();
 						lines += count_lines_path_recursive(&path, ignored_dirs, file_types);
 					}
@@ -182,15 +188,18 @@ fn analyze_path_recursive(
 			}
 		}
 		let Ok(paths) = fs::read_dir(dir_path) else {
-            eprintln!("{} could not be read as a directory.", dir_path.display());
-            return;
-        };
+			eprintln!("{} could not be read as a directory.", dir_path.display());
+			return;
+		};
 
 		for dir_entry_fallible in paths {
 			let Ok(dir_entry) = dir_entry_fallible else {
-                eprintln!("Could not use dir_entry: {}", dir_entry_fallible.unwrap_err());
-                continue;
-            };
+				eprintln!(
+					"Could not use dir_entry: {}",
+					dir_entry_fallible.unwrap_err()
+				);
+				continue;
+			};
 			let path = dir_entry.path();
 			analyze_path_recursive(&path, ignored_dirs, file_types);
 		}
@@ -211,17 +220,17 @@ fn analyze_path_recursive(
 
 fn count_lines_in_file(file_path: &PathBuf) -> u128 {
 	let Ok(file_str) = fs::read_to_string(file_path) else {
-        eprintln!("{:?} could not be read as a file to a string.", file_path);
-        return 0;
-    };
+		eprintln!("{:?} could not be read as a file to a string.", file_path);
+		return 0;
+	};
 	u128::from(code_analysis::count_valid_code_lines(&file_str))
 }
 
 fn analyze_file(file_path: &PathBuf) {
 	let Ok(file_str) = fs::read_to_string(file_path) else {
-        eprintln!("{:?} could not be read as a file to a string.", file_path);
-        return;
-    };
+		eprintln!("{:?} could not be read as a file to a string.", file_path);
+		return;
+	};
 
 	let name = file_path.file_name().unwrap(); // should be valid because we read it as a file
 	let lines_of_code = code_analysis::count_valid_code_lines(&file_str);
